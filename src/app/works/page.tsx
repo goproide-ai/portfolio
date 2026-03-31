@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useRef } from "react";
+import { useCallback, useRef } from "react";
 import HexGrid from "@/components/HexGrid";
 
 const links: Record<string, string> = {
@@ -108,25 +108,30 @@ const projects = [
 ];
 
 export default function Works() {
-  const spotRef = useRef<HTMLDivElement>(null);
+  const glowRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
-  useEffect(() => {
-    const onMove = (e: MouseEvent) => {
-      if (spotRef.current) {
-        spotRef.current.style.left = `${e.clientX}px`;
-        spotRef.current.style.top = `${e.clientY}px`;
-        spotRef.current.style.opacity = "1";
-      }
-    };
-    const onLeave = () => {
-      if (spotRef.current) spotRef.current.style.opacity = "0";
-    };
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseleave", onLeave);
-    return () => {
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseleave", onLeave);
-    };
+  const handleMouseMove = useCallback((e: React.MouseEvent, id: string) => {
+    const card = e.currentTarget as HTMLElement;
+    const rect = card.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const cx = rect.width / 2;
+    const cy = rect.height / 2;
+    const rotateY = ((x - cx) / cx) * 4;
+    const rotateX = ((cy - y) / cy) * 4;
+    card.style.transform = `perspective(800px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(1.02)`;
+    const glow = glowRefs.current.get(id);
+    if (glow) {
+      glow.style.opacity = "1";
+      glow.style.background = `radial-gradient(600px circle at ${x}px ${y}px, rgba(139,92,246,0.12), rgba(56,189,248,0.06) 40%, transparent 70%)`;
+    }
+  }, []);
+
+  const handleMouseLeave = useCallback((e: React.MouseEvent, id: string) => {
+    const card = e.currentTarget as HTMLElement;
+    card.style.transform = "perspective(800px) rotateX(0deg) rotateY(0deg) scale(1)";
+    const glow = glowRefs.current.get(id);
+    if (glow) glow.style.opacity = "0";
   }, []);
 
   const handleClick = (id: string) => {
@@ -138,19 +143,6 @@ export default function Works() {
     <div className="relative min-h-screen overflow-hidden">
       <HexGrid />
 
-      {/* Spotlight cursor */}
-      <div
-        ref={spotRef}
-        className="fixed pointer-events-none z-30 -translate-x-1/2 -translate-y-1/2 transition-opacity duration-200"
-        style={{
-          width: 150,
-          height: 150,
-          borderRadius: "50%",
-          background: "radial-gradient(circle, rgba(139,92,246,0.12) 0%, rgba(56,189,248,0.06) 40%, transparent 70%)",
-          opacity: 0,
-        }}
-      />
-
       <div className="relative z-10 py-20 px-6">
         <div className="max-w-6xl mx-auto">
           {/* Header */}
@@ -160,14 +152,22 @@ export default function Works() {
           </div>
 
           {/* Grid */}
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-px bg-[#1a1a1a]">
+          <div className="works-grid grid md:grid-cols-2 lg:grid-cols-3 gap-px bg-[#1a1a1a]">
             {projects.map((p) => (
               <div
                 key={p.id}
-                className={`group bg-[#0a0a0a] overflow-hidden ${p.id in links ? "cursor-pointer" : ""}`}
-                style={{ isolation: "isolate" }}
+                className={`group relative bg-[#0a0a0a] overflow-hidden ${p.id in links ? "cursor-pointer" : ""}`}
+                style={{ isolation: "isolate", transition: "transform 0.3s ease-out" }}
+                onMouseMove={(e) => handleMouseMove(e, p.id)}
+                onMouseLeave={(e) => handleMouseLeave(e, p.id)}
                 onClick={() => handleClick(p.id)}
               >
+                {/* Mouse glow overlay */}
+                <div
+                  ref={(el) => { if (el) glowRefs.current.set(p.id, el); }}
+                  className="absolute inset-0 z-20 pointer-events-none transition-opacity duration-300"
+                  style={{ opacity: 0 }}
+                />
                 {/* Image */}
                 <div className="overflow-hidden">
                   {"img2" in p ? (
