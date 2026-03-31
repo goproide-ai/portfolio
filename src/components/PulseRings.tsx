@@ -54,7 +54,7 @@ export default function PulseRings() {
         const r = progress * 160;
         const a = (1 - progress) * 0.35;
         ctx.beginPath();
-        ctx.arc(mx, my - window.scrollY, r, 0, Math.PI * 2);
+        ctx.arc(mx, my, r, 0, Math.PI * 2);
         ctx.strokeStyle = `rgba(56,189,248,${a.toFixed(2)})`;
         ctx.lineWidth = 1 - progress * 0.8;
         ctx.stroke();
@@ -62,7 +62,7 @@ export default function PulseRings() {
 
       // glowing cursor dot
       ctx.beginPath();
-      ctx.arc(mx, my - window.scrollY, 3, 0, Math.PI * 2);
+      ctx.arc(mx, my, 3, 0, Math.PI * 2);
       ctx.fillStyle = "rgba(139,92,246,0.7)";
       ctx.fill();
     }
@@ -84,7 +84,10 @@ export default function PulseRings() {
       if (ctx) ctx.scale(dpr, dpr);
     };
 
-    const onMove  = (e: MouseEvent) => { mouseRef.current = { x: e.clientX, y: e.clientY + window.scrollY }; };
+    const onMove  = (e: MouseEvent) => {
+      const rect = canvas.getBoundingClientRect();
+      mouseRef.current = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    };
     const onLeave = ()               => { mouseRef.current = { x: -9999, y: -9999 }; };
 
     resize();
