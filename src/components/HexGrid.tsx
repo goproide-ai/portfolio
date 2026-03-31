@@ -65,7 +65,10 @@ export default function HexGrid() {
       if (ctx) ctx.scale(dpr, dpr);
     };
 
-    const onMove  = (e: MouseEvent) => { mouseRef.current = { x: e.clientX, y: e.clientY + window.scrollY }; };
+    const onMove  = (e: MouseEvent) => {
+      const rect = canvas.getBoundingClientRect();
+      mouseRef.current = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    };
     const onLeave = ()               => { mouseRef.current = { x: -9999, y: -9999 }; };
 
     resize();

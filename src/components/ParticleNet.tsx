@@ -101,7 +101,10 @@ export default function ParticleNet() {
       init(window.innerWidth, document.body.scrollHeight);
     };
 
-    const onMove  = (e: MouseEvent) => { mouseRef.current = { x: e.clientX, y: e.clientY + window.scrollY }; };
+    const onMove  = (e: MouseEvent) => {
+      const rect = canvas.getBoundingClientRect();
+      mouseRef.current = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    };
     const onLeave = ()               => { mouseRef.current = { x: -9999, y: -9999 }; };
 
     resize();

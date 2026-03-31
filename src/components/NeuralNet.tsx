@@ -209,7 +209,8 @@ export default function NeuralNet() {
     };
 
     const onMove = (e: MouseEvent) => {
-      mouseRef.current = { x: e.clientX, y: e.clientY + window.scrollY };
+      const rect = canvas.getBoundingClientRect();
+      mouseRef.current = { x: e.clientX - rect.left, y: e.clientY - rect.top };
     };
     const onLeave = () => {
       mouseRef.current  = { x: -9999, y: -9999 };

@@ -28,24 +28,57 @@ export default function StaticNoise() {
 
     ctx.clearRect(0, 0, W, H);
 
-    // scattered noise pixels
-    const density = 1200;
-    for (let i = 0; i < density; i++) {
-      const x  = Math.random() * W;
-      const y  = Math.random() * H;
-      const dx = x - mx, dy = y - my;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      const near = Math.max(0, 1 - dist / 300);
-      const a  = (0.01 + near * 0.06) * Math.random();
-      ctx.fillStyle = `rgba(139,92,246,${a.toFixed(3)})`;
-      ctx.fillRect(x, y, 1, 1);
+    const SPACING = 14;
+    const R = 350;
+
+    // Vertical grid lines
+    for (let x = 0; x < W; x += SPACING) {
+      const dx = x - mx;
+      const dist = Math.abs(dx);
+      const near = Math.max(0, 1 - dist / R);
+      const a = 0.03 + near * 0.08;
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, H);
+      ctx.strokeStyle = `rgba(139,92,246,${a.toFixed(3)})`;
+      ctx.lineWidth = 0.5 + near * 0.5;
+      ctx.stroke();
     }
 
-    // horizontal scan line near mouse
-    if (my > 0) {
-      const scan = Math.sin(frame * 0.04) * 40;
-      ctx.fillStyle = "rgba(56,189,248,0.03)";
-      ctx.fillRect(0, my + scan - 1, W, 2);
+    // Horizontal grid lines
+    for (let y = 0; y < H; y += SPACING) {
+      const dy = y - my;
+      const dist = Math.abs(dy);
+      const near = Math.max(0, 1 - dist / R);
+      const a = 0.03 + near * 0.08;
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(W, y);
+      ctx.strokeStyle = `rgba(56,189,248,${a.toFixed(3)})`;
+      ctx.lineWidth = 0.5 + near * 0.5;
+      ctx.stroke();
+    }
+
+    // Intersection dots — only near mouse, reactive size
+    if (mx > 0) {
+      const DOT_R = 200;
+      const startX = Math.max(0, Math.floor((mx - DOT_R) / SPACING) * SPACING);
+      const endX = Math.min(W, mx + DOT_R);
+      const startY = Math.max(0, Math.floor((my - DOT_R) / SPACING) * SPACING);
+      const endY = Math.min(H, my + DOT_R);
+      for (let x = startX; x <= endX; x += SPACING) {
+        for (let y = startY; y <= endY; y += SPACING) {
+          const dx = x - mx, dy = y - my;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < DOT_R) {
+            const near = 1 - dist / DOT_R;
+            ctx.beginPath();
+            ctx.arc(x, y, 0.5 + near * 1.5, 0, Math.PI * 2);
+            ctx.fillStyle = `rgba(139,92,246,${(near * 0.6).toFixed(3)})`;
+            ctx.fill();
+          }
+        }
+      }
     }
 
     rafRef.current = requestAnimationFrame(draw);
@@ -65,7 +98,10 @@ export default function StaticNoise() {
       if (ctx) ctx.scale(dpr, dpr);
     };
 
-    const onMove  = (e: MouseEvent) => { mouseRef.current = { x: e.clientX, y: e.clientY + window.scrollY }; };
+    const onMove  = (e: MouseEvent) => {
+      const rect = canvas.getBoundingClientRect();
+      mouseRef.current = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    };
     const onLeave = ()               => { mouseRef.current = { x: -9999, y: -9999 }; };
 
     resize();
