@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 
@@ -30,13 +31,21 @@ export default function Navigation() {
             <Link
               key={item.href}
               href={item.href}
-              className={`text-xs tracking-[0.15em] uppercase transition-colors relative ${
-                pathname === item.href
-                  ? "text-white"
-                  : "text-[#666] hover:text-[#999]"
+              className={`transition-all relative ${
+                item.href === "/busan-is-good"
+                  ? "opacity-80 hover:opacity-100"
+                  : `text-xs tracking-[0.15em] uppercase transition-colors ${
+                      pathname === item.href
+                        ? "text-white"
+                        : "text-[#666] hover:text-[#999]"
+                    }`
               }`}
             >
-              {item.label}
+              {item.href === "/busan-is-good" ? (
+                <Image src="/pptx/busan_logo.png" alt="BUSAN IS GOOD" width={100} height={28} className="h-5 w-auto" />
+              ) : (
+                item.label
+              )}
               {pathname === item.href && (
                 <span className="absolute -bottom-1 left-0 w-full h-[1px] bg-gradient-to-r from-[#8B5CF6] to-[#38BDF8]" />
               )}
@@ -69,7 +78,11 @@ export default function Navigation() {
                   pathname === item.href ? "text-white" : "text-[#666]"
                 }`}
               >
-                {item.label}
+                {item.href === "/busan-is-good" ? (
+                  <Image src="/pptx/busan_logo.png" alt="BUSAN IS GOOD" width={100} height={28} className="h-5 w-auto" />
+                ) : (
+                  item.label
+                )}
               </Link>
             ))}
           </div>

@@ -1,16 +1,125 @@
 "use client";
 
+import Image from "next/image";
 import PulseRings from "@/components/PulseRings";
 import { useState } from "react";
 
+const wdcNews = [
+  {
+    title: "Busan Metropolitan City designated World Design Capital 2028",
+    source: "World Design Organization",
+    url: "https://wdo.org/busan-metropolitan-city-designated-world-design-capital-2028/",
+  },
+  {
+    title: "부산이 세계 디자인 수도 됐다... 2028 WDC 최종 선정",
+    source: "아시아경제",
+    url: "https://www.asiae.co.kr/article/2025072210211767216",
+  },
+  {
+    title: "세계디자인 수도... 항저우 제치고 부산 선정",
+    source: "KNN",
+    url: "https://news.knn.co.kr/news/article/175495",
+  },
+  {
+    title: "부산시, 2028 세계디자인수도(WDC) 최종 선정",
+    source: "브릿지경제",
+    url: "https://www.viva100.com/article/20250722500678",
+  },
+  {
+    title: "Busan designated 2028 World Design Capital for urban potential",
+    source: "Korea.net",
+    url: "https://www.korea.net/NewsFocus/Culture/view?articleId=275698",
+  },
+  {
+    title: "[기고] '2028년 부산 세계 디자인 수도' 지정의 과제",
+    source: "부산일보",
+    url: "https://www.busan.com/view/busan/view.php?code=2025092115023940664",
+  },
+  {
+    title: "Busan Selected as 2028 World Design Capital, Beating Out Hangzhou",
+    source: "Haps Korea",
+    url: "https://www.hapskorea.com/busan-selected-as-2028-world-design-capital-beating-out-hangzhou/",
+  },
+  {
+    title: "부산시, 23일부터 '2028 세계디자인수도 부산 주간' 운영",
+    source: "헤럴드경제",
+    url: "https://biz.heraldcorp.com/article/10697708",
+  },
+];
+
 export default function Contact() {
   const [copied, setCopied] = useState(false);
+  const [showEvent, setShowEvent] = useState(false);
   const email = "sungchan@seoultech.ac.kr";
   const copyEmail = () => {
     navigator.clipboard.writeText(email);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+
+  if (showEvent) {
+    return (
+      <div className="relative min-h-[calc(100vh-4rem)] overflow-hidden py-20 px-6">
+        <PulseRings />
+        <div className="relative z-10 max-w-4xl mx-auto">
+          {/* Title */}
+          <div className="text-center mb-12">
+            <p className="font-mono text-[10px] tracking-[0.5em] text-[#8B5CF6] uppercase mb-6">Congratulations</p>
+            <h1 className="text-xl md:text-3xl font-bold tracking-tight text-white leading-tight">
+              Congratulations to Busan on being selected as the World Design Capital 2028!
+            </h1>
+          </div>
+
+          {/* Image */}
+          <div className="mb-16 overflow-hidden">
+            <Image
+              src="/pptx/busan_city.jpg"
+              alt="Busan World Design Capital 2028"
+              width={1400}
+              height={700}
+              className="w-full h-auto"
+            />
+          </div>
+
+          {/* News */}
+          <div className="mb-12">
+            <h2 className="font-mono text-[10px] tracking-[0.3em] text-[#38BDF8] uppercase mb-6">Related News</h2>
+            <div className="space-y-px">
+              {wdcNews.map((n, i) => (
+                <a
+                  key={i}
+                  href={n.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group flex items-center gap-6 py-5 px-4 bg-[#0a0a0a] border-b border-[#1a1a1a] hover:bg-[#111] transition-colors"
+                >
+                  <div className="w-10 h-10 border border-[#2a2a2a] flex items-center justify-center shrink-0">
+                    <span className="font-mono text-[9px] text-[#555]">{String(i + 1).padStart(2, "0")}</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-mono text-[9px] text-[#555] mb-1">{n.source}</p>
+                    <h3 className="text-sm text-[#ccc] group-hover:text-[#8B5CF6] transition-colors leading-6">{n.title}</h3>
+                  </div>
+                  <span className="font-mono text-[10px] text-[#444] group-hover:text-[#8B5CF6] group-hover:translate-x-1 transition-all shrink-0">→</span>
+                </a>
+              ))}
+            </div>
+          </div>
+
+          {/* Back button */}
+          <div className="text-center">
+            <button
+              onClick={() => setShowEvent(false)}
+              className="font-mono text-[10px] tracking-[0.3em] text-[#555] hover:text-[#8B5CF6] transition-colors uppercase"
+            >
+              ← BACK
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="relative min-h-[calc(100vh-4rem)] flex items-center justify-center overflow-hidden py-20 px-6">
       <PulseRings />
@@ -102,6 +211,17 @@ export default function Contact() {
         <p className="font-mono text-[9px] text-[#333] text-center mt-8">
           &copy; 2025 Sungchan Ko. All rights reserved.
         </p>
+
+        {/* WDC Banner */}
+        <button onClick={() => setShowEvent(true)} className="mt-12 overflow-hidden rounded-lg w-full hover:opacity-90 transition-opacity">
+          <Image
+            src="/pptx/wdc_banner.jpg"
+            alt="World Design Capital Busan 2028"
+            width={1200}
+            height={400}
+            className="w-full h-auto"
+          />
+        </button>
       </div>
     </div>
   );
