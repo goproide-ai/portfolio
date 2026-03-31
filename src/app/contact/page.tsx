@@ -2,7 +2,8 @@
 
 import Image from "next/image";
 import PulseRings from "@/components/PulseRings";
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { useTheme } from "@/context/ThemeContext";
 
 const wdcNews = [
   {
@@ -48,8 +49,24 @@ const wdcNews = [
 ];
 
 export default function Contact() {
+  const { isWhite } = useTheme();
   const [copied, setCopied] = useState(false);
   const [showEvent, setShowEvent] = useState(false);
+  const [playing, setPlaying] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  const toggleMusic = () => {
+    if (!audioRef.current) {
+      audioRef.current = new Audio("/pptx/busan_bgm.mp3");
+      audioRef.current.loop = true;
+    }
+    if (playing) {
+      audioRef.current.pause();
+    } else {
+      audioRef.current.play();
+    }
+    setPlaying(!playing);
+  };
   const email = "sungchan@seoultech.ac.kr";
   const copyEmail = () => {
     navigator.clipboard.writeText(email);
@@ -61,28 +78,28 @@ export default function Contact() {
     return (
       <div className="relative min-h-[calc(100vh-4rem)] overflow-hidden py-20 px-6">
         <PulseRings />
-        <div className="relative z-10 max-w-4xl mx-auto">
-          {/* Title */}
-          <div className="text-center mb-12">
-            <p className="font-mono text-[10px] tracking-[0.5em] text-[#8B5CF6] uppercase mb-6">Congratulations</p>
-            <h1 className="text-xl md:text-3xl font-bold tracking-tight text-white leading-tight">
-              Congratulations to Busan on being selected as the World Design Capital 2028!
-            </h1>
-          </div>
-
-          {/* Image */}
-          <div className="mb-16 overflow-hidden">
+        <div className="relative z-10 max-w-4xl mx-auto pt-4">
+          {/* Image with title overlay */}
+          <div className="mb-10 overflow-hidden rounded-lg relative">
             <Image
-              src="/pptx/busan_city.jpg"
+              src={isWhite ? "/pptx/busan_city_white.jpg" : "/pptx/busan_city_v2.jpg"}
               alt="Busan World Design Capital 2028"
               width={1400}
               height={700}
               className="w-full h-auto"
             />
+            <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/70 to-transparent">
+              <button
+                onClick={toggleMusic}
+                className="block w-full text-base md:text-2xl font-bold tracking-tight text-white hover:text-[#8B5CF6] transition-colors cursor-pointer drop-shadow-lg text-left"
+              >
+                Congratulations to Busan on being selected as the World Design Capital 2028! {playing ? "♫" : "♪"}
+              </button>
+            </div>
           </div>
 
           {/* News */}
-          <div className="mb-12">
+          <div className="mb-12 mt-8">
             <h2 className="font-mono text-[10px] tracking-[0.3em] text-[#38BDF8] uppercase mb-6">Related News</h2>
             <div className="space-y-px">
               {wdcNews.map((n, i) => (
