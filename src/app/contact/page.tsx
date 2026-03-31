@@ -88,10 +88,11 @@ export default function Contact() {
               height={700}
               className="w-full h-auto"
             />
-            <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black/70 to-transparent">
+            <div className="absolute bottom-0 left-0 right-0 p-6">
               <button
                 onClick={toggleMusic}
-                className="block w-full text-base md:text-2xl font-bold tracking-tight text-white hover:text-[#8B5CF6] transition-colors cursor-pointer drop-shadow-lg text-left"
+                className="block w-full text-base md:text-2xl font-bold tracking-tight hover:text-[#8B5CF6] transition-colors cursor-pointer text-left"
+              style={{ color: "#333" }}
               >
                 Congratulations to Busan on being selected as the World Design Capital 2028! {playing ? "♫" : "♪"}
               </button>

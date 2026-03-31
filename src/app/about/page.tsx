@@ -1,7 +1,11 @@
+"use client";
+
 import Image from "next/image";
 import ParticleNet from "@/components/ParticleNet";
+import { useTheme } from "@/context/ThemeContext";
 
 export default function About() {
+  const { isWhite } = useTheme();
   return (
     <div className="relative min-h-screen overflow-hidden">
       <ParticleNet />
@@ -9,19 +13,22 @@ export default function About() {
       <div className="relative z-10 flex flex-col md:flex-row min-h-[calc(100vh-4rem)]">
 
         {/* ── LEFT: Sticky profile photo ─────────────────────────── */}
-        <div className="md:w-[42%] shrink-0 md:sticky md:top-16 md:h-[calc(100vh-4rem)] relative overflow-hidden">
+        <div className="md:w-[42%] shrink-0 md:sticky md:top-0 md:h-screen relative overflow-hidden">
           <Image
-            src="/pptx/profile_portrait.jpg"
+            src={isWhite ? "/pptx/profile_white.jpg" : "/pptx/profile_dark.jpg"}
             alt="Ko Sungchan"
             fill
             priority
             sizes="42vw"
             className="object-cover object-center"
           />
-          {/* Right-edge fade into page background */}
-          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-transparent to-[#0a0a0a]/70 hidden md:block" />
-          {/* Bottom fade */}
-          <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a]/80 via-transparent to-transparent" />
+          {/* Right-edge fade into page background — only on dark theme */}
+          {!isWhite && (
+            <>
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-transparent to-[#0a0a0a]/70 hidden md:block" />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a]/80 via-transparent to-transparent" />
+            </>
+          )}
 
           {/* Name overlay */}
           <div className="absolute bottom-8 left-8 right-8">
@@ -35,14 +42,13 @@ export default function About() {
         </div>
 
         {/* ── RIGHT: Scrollable info ──────────────────────────────── */}
-        <div className="flex-1 py-16 px-8 md:px-16 md:pl-20 space-y-14 overflow-y-auto" style={{ paddingLeft: "clamp(1.5rem, 3.5vw, 4rem)" }}>
+        <div className="flex-1 pt-6 pb-16 px-8 md:px-16 md:pl-20 space-y-14 overflow-y-auto" style={{ paddingLeft: "clamp(1.5rem, 3.5vw, 4rem)" }}>
 
           {/* Bio */}
-          <div>
+          <div style={{ marginTop: "80px" }}>
             <p className="text-[#999] text-sm leading-9 mb-6">
-              산업 디자이너이자 AI 디자인 연구자. 삼성전자에서 16년간 혁신적인
-              제품 디자인을 이끌며 기술과 디자인의 융합을 선도해 왔습니다.
-              현재 서울과학기술대학교 산업디자인학과 교수로 재직하며 차세대
+              삼성전자에서 16년간 로봇, AI, 가전 등 다양한 제품의 디자인을 담당했습니다.
+              현재 서울과학기술대학교 산업디자인학과 교수로 재직하며 다음 세대의
               디자이너 양성에 힘쓰고 있습니다.
             </p>
             <div className="space-y-2 font-mono text-xs text-[#555]">
