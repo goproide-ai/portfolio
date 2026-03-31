@@ -139,12 +139,12 @@ export default function Contact() {
   }
 
   return (
-    <div className="relative min-h-[calc(100vh-4rem)] flex items-center justify-center overflow-hidden py-20 px-6">
+    <div className="relative min-h-[calc(100vh-4rem)] flex items-start justify-center overflow-hidden pt-10 pb-20 px-6">
       <PulseRings />
 
       <div className="relative z-10 max-w-xl w-full">
         {/* CAD frame */}
-        <div className="relative p-14 md:p-20">
+        <div className="relative px-14 pb-14 pt-4 md:px-20 md:pb-20 md:pt-4">
           <div className="absolute top-0 left-0 w-12 h-12 border-t border-l border-[#2a2a2a]" />
           <div className="absolute top-0 right-0 w-12 h-12 border-t border-r border-[#2a2a2a]" />
           <div className="absolute bottom-0 left-0 w-12 h-12 border-b border-l border-[#2a2a2a]" />

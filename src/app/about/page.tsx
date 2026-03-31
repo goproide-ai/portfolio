@@ -45,7 +45,7 @@ export default function About() {
         <div className="flex-1 pt-6 pb-16 px-8 md:px-16 md:pl-20 space-y-14 overflow-y-auto" style={{ paddingLeft: "clamp(1.5rem, 3.5vw, 4rem)" }}>
 
           {/* Bio */}
-          <div style={{ marginTop: "80px" }}>
+          <div>
             <p className="text-[#999] text-sm leading-9 mb-6">
               삼성전자에서 16년간 로봇, AI, 가전 등 다양한 제품의 디자인을 담당했습니다.
               현재 서울과학기술대학교 산업디자인학과 교수로 재직하며 다음 세대의
