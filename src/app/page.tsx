@@ -64,16 +64,6 @@ export default function Home() {
             style={{ borderColor: isWhite ? "#bbb" : "#333" }}
           />
 
-          <p
-            className="font-mono text-[9px] tracking-[0.55em] uppercase mb-6 animate-fadeIn"
-            style={{
-              color: isWhite ? "#888" : "#555",
-              animationDelay: "0.1s",
-              animationFillMode: "both",
-            }}
-          >
-            Portfolio
-          </p>
 
           <h1
             className="font-sans font-bold tracking-[-0.02em] leading-none mb-4 animate-fadeInUp"
@@ -139,12 +129,6 @@ export default function Home() {
             style={{ color: isWhite ? "#bbb" : "#2a2a2a" }}
           >
             00.00 / 00.00
-          </span>
-          <span
-            className="font-mono text-[8px]"
-            style={{ color: isWhite ? "#bbb" : "#2a2a2a" }}
-          >
-            PORTFOLIO 2025
           </span>
           <span
             className="font-mono text-[8px]"
