@@ -74,19 +74,13 @@ export default function About() {
               Professional Experience
             </h2>
             <div className="space-y-5">
-              <div className="flex gap-5">
-                <span className="font-mono text-[10px] text-[#555] w-24 shrink-0 pt-0.5">2026 –</span>
-                <div>
-                  <p className="text-sm text-white">서울과학기술대학교</p>
-                  <p className="text-xs text-[#666] mt-1 leading-6">산업디자인학과 조교수</p>
-                </div>
+              <div>
+                <p className="text-sm text-white">서울과학기술대학교</p>
+                <p className="text-xs text-[#666] mt-1 leading-6">산업디자인학과 조교수</p>
               </div>
-              <div className="flex gap-5">
-                <span className="font-mono text-[10px] text-[#555] w-24 shrink-0 pt-0.5">2010 – 2026</span>
-                <div>
-                  <p className="text-sm text-white">삼성전자 / 삼성리서치</p>
-                  <p className="text-xs text-[#666] mt-1 leading-6">Industrial / UX Designer · UXIL</p>
-                </div>
+              <div>
+                <p className="text-sm text-white">삼성전자 삼성리서치 (2010-2026)</p>
+                <p className="text-xs text-[#666] mt-1 leading-6">Industrial / UX Designer · UXIL</p>
               </div>
             </div>
           </div>
@@ -100,6 +94,7 @@ export default function About() {
               {[
                 "Industrial Design","Design Engineering","Mechanical Design",
                 "UX Design","Exhibition Design","Character Design","AI Design",
+                "Automotive Design","Robotics Design",
               ].map((s) => (
                 <span
                   key={s}

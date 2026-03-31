@@ -47,62 +47,47 @@ const others = [
   {
     title: "삼성리서치, E&I랩 신설… 고성찬 디자이너 팀 포함",
     source: "이데일리",
-    url: "https://www.edaily.co.kr/News/Read?newsId=03474246629226784",
+    url: "https://m.edaily.co.kr/News/Read?newsId=02702726629080736&mediaCodeNo=257",
   },
   {
     title: "경남정보대 창의융합포럼 연사 — 'AI 시대, 디자이너의 역할'",
-    source: "뉴시스",
-    url: "https://www.newsis.com/view/NISX20251212_0003086540",
+    source: "아시아경제",
+    url: "https://www.asiae.co.kr/article/2025122215134682320",
   },
   {
     title: "경북 디자인 AI 포럼 — 'Generation AI Mindset' 발표",
     source: "전자신문",
-    url: "https://www.etnews.com/20251121000261",
+    url: "https://www.etnews.com/20251121000315",
   },
   {
     title: "광주디자인진흥원 AI 업스킬링 세미나 — 생성형 AI 디자인 프로세스 강연",
     source: "전자신문",
-    url: "https://www.etnews.com/20250901000187",
+    url: "https://www.etnews.com/20250720000090",
   },
   {
     title: "한양대 ISDW 2025 국제 디자인 워크샵 강사",
-    source: "뉴시스",
-    url: "https://www.newsis.com/view/NISX20250829_0003016199",
+    source: "중앙이코노미뉴스",
+    url: "https://www.joongangenews.com/news/articleView.html?idxno=446475",
   },
   {
     title: "전북 디자인포럼 — '디자인 AI 또는 AI에 의한 디자인'",
     source: "전자신문",
-    url: "https://www.etnews.com/20250619000166",
+    url: "https://www.etnews.com/20250619000101",
   },
   {
     title: "대전디자인진흥원 생성형 AI 교육 강사",
-    source: "한국경제TV",
-    url: "https://www.wowtv.co.kr/NewsCenter/News/Read?articleId=A202411130243",
+    source: "한국경제",
+    url: "https://www.hankyung.com/article/2024112274515",
   },
   {
     title: "국민대 생성형AI 워크샵 — 삼성전자 현장 방문 및 강의",
-    source: "디지털타임스",
-    url: "https://www.dt.co.kr/contents.html?article_no=2024081302109931034001",
-  },
-  {
-    title: "전북 디자인포럼 연사 (2024)",
-    source: "뉴스1",
-    url: "https://www.news1.kr/local/jeonbuk/5433095",
-  },
-  {
-    title: "제품과 대화하는 AI 시대 — 16년 경력 디자이너의 AI 활용 인사이트",
-    source: "아시아경제",
-    url: "https://www.asiae.co.kr/article/2025060516425873671",
-  },
-  {
-    title: "대전디자인진흥원 생성형AI 디자인 교육 초빙 전문가",
-    source: "아이뉴스24",
-    url: "https://www.inews24.com/view/1741091",
+    source: "헤럴드경제",
+    url: "https://biz.heraldcorp.com/article/3451352",
   },
   {
     title: "대전디자인진흥원 AI 꿈돌이 콘텐츠 기획 자문",
     source: "전자신문",
-    url: "https://www.etnews.com/20250702000219",
+    url: "https://www.etnews.com/20250702000142",
   },
 ];
 

@@ -14,7 +14,7 @@ export default function ParticleNet() {
   const pRef      = useRef<Particle[]>([]);
 
   const init = useCallback((w: number, h: number) => {
-    pRef.current = Array.from({ length: 60 }, () => ({
+    pRef.current = Array.from({ length: 300 }, () => ({
       x: Math.random() * w,
       y: Math.random() * h,
       vx: (Math.random() - 0.5) * 0.4,

@@ -1,3 +1,4 @@
+import Image from "next/image";
 import NeuralNet from "@/components/NeuralNet";
 
 export default function AIDesign() {
@@ -9,11 +10,9 @@ export default function AIDesign() {
         <div className="max-w-6xl mx-auto">
           {/* Header */}
           <div className="mb-16">
-            <p className="font-mono text-[10px] tracking-[0.5em] text-[#8B5CF6] uppercase mb-4">AI + Design</p>
+            <p className="font-mono text-[10px] tracking-[0.5em] text-[#8B5CF6] uppercase mb-4">Design + AI + Education</p>
             <h1 className="text-4xl md:text-5xl font-light tracking-tight mb-4">
-              <span className="gradient-text">AI Design</span>
-              <br />
-              <span className="text-white">Activities</span>
+              <span className="gradient-text">Activities</span>
             </h1>
             <p className="text-sm text-[#666] max-w-2xl leading-8">
               AI가 디자이너를 대체하는 것이 아니라, 복잡한 문제 해결을 위한 든든한
@@ -25,7 +24,7 @@ export default function AIDesign() {
           {/* Lectures & Workshops */}
           <section className="mb-16">
             <h2 className="font-mono text-[10px] tracking-[0.3em] text-[#38BDF8] uppercase mb-8 gradient-border-b pb-2">
-              AI Design Lectures & Workshops
+              Lectures & Workshops
             </h2>
             <div className="space-y-px">
               {[
@@ -50,7 +49,7 @@ export default function AIDesign() {
           {/* Advisory & Jury */}
           <section className="mb-16">
             <h2 className="font-mono text-[10px] tracking-[0.3em] text-[#38BDF8] uppercase mb-8 gradient-border-b pb-2">
-              AI Advisory & Jury
+              Advisory & Jury
             </h2>
             <div className="space-y-px">
               {[
@@ -61,12 +60,53 @@ export default function AIDesign() {
                 { year: "2025–23", title: "삼성디자인멤버십 제품디자인 튜터" },
                 { year: "2025", title: "서울인천 코리아디자인멤버십+ 6기 신입 선발 심사위원" },
                 { year: "2026", title: "광주 코리아디자인멤버십+ 7기 신입 선발 심사위원" },
+                { year: "2024", title: "삼성전자 신입사원 채용 심사위원" },
+                { year: "2024", title: "삼성디자인멤버십 33기 채용 심사위원" },
               ].map((l, i) => (
                 <div key={i} className="flex items-baseline gap-6 py-4 border-b border-[#1a1a1a] group hover:bg-[#111] px-4 transition-colors">
                   <span className="font-mono text-[10px] text-[#555] w-16 shrink-0">{l.year}</span>
                   <p className="text-sm text-[#999] leading-7 group-hover:text-[#ccc] transition-colors">{l.title}</p>
                 </div>
               ))}
+            </div>
+          </section>
+
+          {/* Recent Lectures */}
+          <section className="mb-16">
+            <h2 className="font-mono text-[10px] tracking-[0.3em] text-[#38BDF8] uppercase mb-8 gradient-border-b pb-2">
+              Recent Lectures
+            </h2>
+            <div className="grid md:grid-cols-2 gap-6">
+              <div className="group relative overflow-hidden border border-[#1a1a1a] hover:border-[#8B5CF6]/40 transition-colors">
+                <div className="relative aspect-[3/4] w-full">
+                  <Image
+                    src="/pptx/lecture_busan.jpg"
+                    alt="부산관광 미래포럼"
+                    fill
+                    className="object-cover object-top transition-transform duration-500 group-hover:scale-105"
+                  />
+                </div>
+                <div className="p-5">
+                  <p className="font-mono text-[9px] text-[#8B5CF6] mb-2">2026.04.01</p>
+                  <h3 className="text-sm text-white leading-6 mb-1">제15회 부산관광 미래포럼</h3>
+                  <p className="text-xs text-[#666] leading-6">생성형 AI로 인한 비주얼 콘텐츠 및 마케팅 패러다임 변화</p>
+                </div>
+              </div>
+              <div className="group relative overflow-hidden border border-[#1a1a1a] hover:border-[#8B5CF6]/40 transition-colors">
+                <div className="relative aspect-[3/4] w-full">
+                  <Image
+                    src="/pptx/lecture_asia.jpg"
+                    alt="Asia Design Prize 강연"
+                    fill
+                    className="object-cover object-center transition-transform duration-500 group-hover:scale-105"
+                  />
+                </div>
+                <div className="p-5">
+                  <p className="font-mono text-[9px] text-[#8B5CF6] mb-2">2026</p>
+                  <h3 className="text-sm text-white leading-6 mb-1">Asia Design Prize 강연</h3>
+                  <p className="text-xs text-[#666] leading-6">AI 시대의 디자이너 역할과 미래 디자인 방향</p>
+                </div>
+              </div>
             </div>
           </section>
 

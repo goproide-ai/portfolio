@@ -1,11 +1,10 @@
 "use client";
 
-import { useState } from "react";
 import InteractiveGrid from "@/components/InteractiveGrid";
+import { useTheme } from "@/context/ThemeContext";
 
 export default function Home() {
-  const [theme, setTheme] = useState<"black" | "white">("black");
-  const isWhite = theme === "white";
+  const { theme, setTheme, isWhite } = useTheme();
 
   return (
     <div
@@ -16,7 +15,7 @@ export default function Home() {
       <InteractiveGrid theme={theme} />
 
       {/* Theme toggle */}
-      <div className="absolute top-6 right-6 z-20 flex items-center gap-2">
+      <div className="absolute bottom-6 right-6 z-20 flex items-center gap-2">
         <span
           className="font-mono text-[9px] tracking-[0.3em] uppercase transition-colors"
           style={{ color: isWhite ? "#555" : "#666" }}

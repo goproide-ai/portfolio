@@ -1,5 +1,14 @@
+"use client";
+
 import Image from "next/image";
+import { useEffect, useRef } from "react";
 import HexGrid from "@/components/HexGrid";
+
+const links: Record<string, string> = {
+  sleev: "https://www.behance.net/gallery/239009133/Sleev",
+  "ai-exp": "https://www.youtube.com/watch?v=S09hviddiss",
+  gems: "https://www.youtube.com/watch?v=1iHAZERgGQc",
+};
 
 const projects = [
   {
@@ -9,7 +18,8 @@ const projects = [
     sub: "Personal Project · 2025",
     category: "Industrial Design",
     awards: ["2025 Korea Design Exhibition — Presidential Award (Grand Prize)", "2025 Red Dot Design Award, Winner", "2025 Busan International Design Award, Silver", "2025 Daejeon Design Award, Gold"],
-    img: "/pptx/image88.jpeg",
+    img: "/pptx/sleev_black.jpg",
+    imgBg: "black" as const,
     role: "Industrial Design 50%",
   },
   {
@@ -98,9 +108,48 @@ const projects = [
 ];
 
 export default function Works() {
+  const spotRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      if (spotRef.current) {
+        spotRef.current.style.left = `${e.clientX}px`;
+        spotRef.current.style.top = `${e.clientY}px`;
+        spotRef.current.style.opacity = "1";
+      }
+    };
+    const onLeave = () => {
+      if (spotRef.current) spotRef.current.style.opacity = "0";
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseleave", onLeave);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseleave", onLeave);
+    };
+  }, []);
+
+  const handleClick = (id: string) => {
+    const url = links[id];
+    if (url) window.open(url, "_blank", "noopener,noreferrer,width=1200,height=800");
+  };
+
   return (
     <div className="relative min-h-screen overflow-hidden">
       <HexGrid />
+
+      {/* Spotlight cursor */}
+      <div
+        ref={spotRef}
+        className="fixed pointer-events-none z-30 -translate-x-1/2 -translate-y-1/2 transition-opacity duration-200"
+        style={{
+          width: 150,
+          height: 150,
+          borderRadius: "50%",
+          background: "radial-gradient(circle, rgba(139,92,246,0.12) 0%, rgba(56,189,248,0.06) 40%, transparent 70%)",
+          opacity: 0,
+        }}
+      />
 
       <div className="relative z-10 py-20 px-6">
         <div className="max-w-6xl mx-auto">
@@ -115,15 +164,14 @@ export default function Works() {
             {projects.map((p) => (
               <div
                 key={p.id}
-                className="group bg-[#0a0a0a] overflow-hidden"
+                className={`group bg-[#0a0a0a] overflow-hidden ${p.id in links ? "cursor-pointer" : ""}`}
                 style={{ isolation: "isolate" }}
+                onClick={() => handleClick(p.id)}
               >
-                {/* Image — zoom is scoped inside this card */}
+                {/* Image */}
                 <div className="overflow-hidden">
                   {"img2" in p ? (
-                    /* Air Pocket: two images overlapping side by side */
                     <div className="relative w-full bg-[#000] overflow-hidden" style={{ aspectRatio: "4/3" }}>
-                      {/* Canister — left side */}
                       <div className="absolute inset-0" style={{ right: "32%" }}>
                         <div className="absolute inset-0 transition-transform duration-500 ease-out group-hover:scale-110" style={{ transform: "scale(1.5)", transformOrigin: "center center" }}>
                           <Image
@@ -135,7 +183,6 @@ export default function Works() {
                           />
                         </div>
                       </div>
-                      {/* Mask — right side, less overlap */}
                       <div className="absolute inset-0" style={{ left: "48%" }}>
                         <div className="absolute inset-0 transition-transform duration-500 ease-out group-hover:scale-110" style={{ transform: "scale(1.95)", transformOrigin: "center center" }}>
                           <Image
@@ -161,7 +208,6 @@ export default function Works() {
                         className={`${"imgFit" in p && p.imgFit === "contain" ? "object-contain" : "object-cover"} transition-transform duration-500 ease-out group-hover:scale-105`}
                         style={{ transformOrigin: "center center", objectPosition: ("imgFit" in p && p.imgFit === "cover-top") ? "50% 18%" : "center" }}
                       />
-                      {/* overlay */}
                       <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-transparent to-transparent opacity-60" />
                       <span className="absolute top-3 left-3 font-mono text-[9px] text-[#666] bg-[#0a0a0a]/80 px-2 py-0.5">{p.num}</span>
                       <span className="absolute top-3 right-3 font-mono text-[8px] text-[#555] bg-[#0a0a0a]/80 px-2 py-0.5 text-right whitespace-pre-line leading-4">{p.category}</span>
@@ -173,6 +219,7 @@ export default function Works() {
                 <div className="p-5">
                   <h3 className="text-base font-medium text-white tracking-wide mb-1 group-hover:text-[#8B5CF6] transition-colors">
                     {p.title}
+                    {p.id in links && <span className="ml-2 text-[10px] text-[#555] group-hover:text-[#8B5CF6]">↗</span>}
                   </h3>
                   <p className="font-mono text-[9px] text-[#555] mb-3">{p.sub}</p>
 
