@@ -1,7 +1,16 @@
+"use client";
+
 import PulseRings from "@/components/PulseRings";
-import Link from "next/link";
+import { useState } from "react";
 
 export default function Contact() {
+  const [copied, setCopied] = useState(false);
+  const email = "sungchan@seoultech.ac.kr";
+  const copyEmail = () => {
+    navigator.clipboard.writeText(email);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
   return (
     <div className="relative min-h-[calc(100vh-4rem)] flex items-center justify-center overflow-hidden py-20 px-6">
       <PulseRings />
@@ -29,12 +38,17 @@ export default function Contact() {
           <div className="space-y-10">
             <div>
               <p className="font-mono text-[9px] tracking-[0.35em] text-[#555] uppercase mb-3">Email</p>
-              <a
-                href="mailto:sungchan@seoultech.ac.kr"
-                className="text-base text-white hover:text-[#8B5CF6] transition-colors"
+              <button
+                onClick={copyEmail}
+                className="text-base text-white hover:text-[#8B5CF6] transition-colors relative"
               >
-                sungchan@seoultech.ac.kr
-              </a>
+                {email}
+                {copied && (
+                  <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-[#8B5CF6] text-white text-xs px-3 py-1 rounded whitespace-nowrap animate-fadeIn">
+                    메일주소가 복사되었습니다
+                  </span>
+                )}
+              </button>
             </div>
 
             <div>
@@ -47,7 +61,7 @@ export default function Contact() {
             <div>
               <p className="font-mono text-[9px] tracking-[0.35em] text-[#555] uppercase mb-4">Links</p>
               <div className="flex flex-col gap-4">
-                <Link
+                <a
                   href="https://www.instagram.com/sungchan.design"
                   target="_blank"
                   rel="noopener noreferrer"
@@ -57,8 +71,8 @@ export default function Contact() {
                   <span className="font-mono text-xs text-[#666] group-hover:text-[#8B5CF6] transition-colors tracking-[0.1em]">
                     Instagram
                   </span>
-                </Link>
-                <Link
+                </a>
+                <a
                   href="https://www.linkedin.com/in/sungchan-ko-b23b4b8b/"
                   target="_blank"
                   rel="noopener noreferrer"
@@ -68,8 +82,8 @@ export default function Contact() {
                   <span className="font-mono text-xs text-[#666] group-hover:text-[#38BDF8] transition-colors tracking-[0.1em]">
                     LinkedIn
                   </span>
-                </Link>
-                <Link
+                </a>
+                <a
                   href="https://id.seoultech.ac.kr/introduction/prof?togo=list&menu=2383&profidx=02740"
                   target="_blank"
                   rel="noopener noreferrer"
@@ -79,7 +93,7 @@ export default function Contact() {
                   <span className="font-mono text-xs text-[#666] group-hover:text-[#8B5CF6] transition-colors tracking-[0.1em]">
                     Seoul Tech University
                   </span>
-                </Link>
+                </a>
               </div>
             </div>
           </div>
