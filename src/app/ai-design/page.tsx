@@ -53,15 +53,15 @@ export default function AIDesign() {
             </h2>
             <div className="space-y-px">
               {[
+                { year: "2026", title: "광주 코리아디자인멤버십+ 7기 신입 선발 심사위원" },
                 { year: "2025", title: "산업통상자원부 산업기술기획평가원 AI 자문위원 / 정부 R&D과제 RFP 편집위원" },
                 { year: "2025", title: "K-Design Award 제품디자인 심사위원" },
                 { year: "2025", title: "한국디자인진흥원 AI 디자인 자격시험 자문위원" },
                 { year: "2025", title: "NIA 범정부 UX/UI 혁신 자문위원" },
-                { year: "2025–23", title: "삼성디자인멤버십 제품디자인 튜터" },
                 { year: "2025", title: "서울인천 코리아디자인멤버십+ 6기 신입 선발 심사위원" },
-                { year: "2026", title: "광주 코리아디자인멤버십+ 7기 신입 선발 심사위원" },
                 { year: "2024", title: "삼성전자 신입사원 채용 심사위원" },
                 { year: "2024", title: "삼성디자인멤버십 33기 채용 심사위원" },
+                { year: "2023–25", title: "삼성디자인멤버십 제품디자인 튜터" },
               ].map((l, i) => (
                 <div key={i} className="flex items-baseline gap-6 py-4 border-b border-[#1a1a1a] group hover:bg-[#111] px-4 transition-colors">
                   <span className="font-mono text-[10px] text-[#555] w-16 shrink-0">{l.year}</span>
@@ -88,8 +88,8 @@ export default function AIDesign() {
                 </div>
                 <div className="p-5">
                   <p className="font-mono text-[9px] text-[#8B5CF6] mb-2">2026.04.01</p>
-                  <h3 className="text-sm text-white leading-6 mb-1">제15회 부산관광 미래포럼</h3>
-                  <p className="text-xs text-[#666] leading-6">생성형 AI로 인한 비주얼 콘텐츠 및 마케팅 패러다임 변화</p>
+                  <h3 className="text-sm text-white leading-6 mb-1">15회 부산관광 미래포럼</h3>
+                  <p className="text-xs text-[#666] leading-6">부산관광공사</p>
                 </div>
               </div>
               <div className="group relative overflow-hidden border border-[#1a1a1a] hover:border-[#8B5CF6]/40 transition-colors">
@@ -102,9 +102,9 @@ export default function AIDesign() {
                   />
                 </div>
                 <div className="p-5">
-                  <p className="font-mono text-[9px] text-[#8B5CF6] mb-2">2026</p>
-                  <h3 className="text-sm text-white leading-6 mb-1">Asia Design Prize 강연</h3>
-                  <p className="text-xs text-[#666] leading-6">AI 시대의 디자이너 역할과 미래 디자인 방향</p>
+                  <p className="font-mono text-[9px] text-[#8B5CF6] mb-2">2026.03.20</p>
+                  <h3 className="text-sm text-white leading-6 mb-1">Asia Design Prize 시상식 특별 강연</h3>
+                  <p className="text-xs text-[#666] leading-6">조선팰리스 강남</p>
                 </div>
               </div>
             </div>
