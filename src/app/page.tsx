@@ -25,19 +25,17 @@ export default function Home() {
         <button
           onClick={() => setTheme("black")}
           className={`w-6 h-6 border transition-all duration-300 ${
-            !isWhite
-              ? "bg-[#0a0a0a] border-[#8B5CF6]"
-              : "bg-[#0a0a0a] border-[#bbb] hover:border-[#888]"
+            !isWhite ? "border-[#8B5CF6]" : "border-[#bbb] hover:border-[#888]"
           }`}
+          style={{ backgroundColor: "#0a0a0a" }}
           title="Dark"
         />
         <button
           onClick={() => setTheme("white")}
           className={`w-6 h-6 border transition-all duration-300 ${
-            isWhite
-              ? "bg-[#f0f0f0] border-[#8B5CF6]"
-              : "bg-[#f0f0f0] border-[#444] hover:border-[#888]"
+            isWhite ? "border-[#8B5CF6]" : "border-[#444] hover:border-[#888]"
           }`}
+          style={{ backgroundColor: "#f0f0f0" }}
           title="Light"
         />
       </div>
