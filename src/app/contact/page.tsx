@@ -58,7 +58,8 @@ export default function Contact() {
   const toggleMusic = () => {
     if (!audioRef.current) {
       audioRef.current = new Audio("/pptx/busan_bgm.mp3");
-      audioRef.current.loop = true;
+      audioRef.current.loop = false;
+      audioRef.current.onended = () => setPlaying(false);
     }
     if (playing) {
       audioRef.current.pause();
@@ -80,14 +81,16 @@ export default function Contact() {
         <PulseRings />
         <div className="relative z-10 max-w-4xl mx-auto pt-4">
           {/* Image with title overlay */}
-          <div className="mb-10 overflow-hidden rounded-lg relative bg-black">
-            <Image
-              src={isWhite ? "/pptx/busan_city_white.jpg" : "/pptx/busan_city_v2.jpg"}
-              alt="Busan World Design Capital 2028"
-              width={1400}
-              height={700}
-              className={`w-full h-auto ${!isWhite ? "mix-blend-lighten" : ""}`}
-            />
+          <div className="mb-10 overflow-hidden rounded-lg relative bg-[#0a0a0a]">
+            <div className={`${!isWhite ? "scale-[1.08] origin-center" : ""}`}>
+              <Image
+                src={isWhite ? "/pptx/busan_city_white.jpg" : "/pptx/busan_city_v2.jpg"}
+                alt="Busan World Design Capital 2028"
+                width={1400}
+                height={700}
+                className="w-full h-auto"
+              />
+            </div>
             <div className="absolute bottom-0 left-0 right-0 p-6">
               <button
                 onClick={toggleMusic}
