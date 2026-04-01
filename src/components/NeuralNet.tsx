@@ -26,20 +26,27 @@ export default function NeuralNet() {
   const timeRef     = useRef(0);
 
   const init = useCallback((w: number, h: number) => {
-    psRef.current = Array.from({ length: 130 }, () => ({
-      x: Math.random() * w,
-      y: Math.random() * h,
-      vx: (Math.random() - 0.5) * 0.25,
-      vy: (Math.random() - 0.5) * 0.25,
-      size: 1.2 + Math.random() * 1.6,
-      alpha: 0.12 + Math.random() * 0.1,
-      alphaCur: 0,
-      hue: Math.random(),
-      orbitAngle: Math.random() * Math.PI * 2,
-      orbitR: 30 + Math.random() * 70,
-      orbitSpeed: (0.005 + Math.random() * 0.012) * (Math.random() < 0.5 ? 1 : -1),
-      inOrbit: false,
-    }));
+    psRef.current = Array.from({ length: 390 }, () => {
+      // Varied sizes: 60% tiny, 25% medium, 15% large
+      const r = Math.random();
+      const size = r < 0.6 ? 0.6 + Math.random() * 0.8
+                 : r < 0.85 ? 1.4 + Math.random() * 1.4
+                 : 2.8 + Math.random() * 2.0;
+      return {
+        x: Math.random() * w,
+        y: Math.random() * h,
+        vx: (Math.random() - 0.5) * 0.25,
+        vy: (Math.random() - 0.5) * 0.25,
+        size,
+        alpha: 0.08 + Math.random() * 0.12,
+        alphaCur: 0,
+        hue: Math.random(),
+        orbitAngle: Math.random() * Math.PI * 2,
+        orbitR: 30 + Math.random() * 70,
+        orbitSpeed: (0.005 + Math.random() * 0.012) * (Math.random() < 0.5 ? 1 : -1),
+        inOrbit: false,
+      };
+    });
   }, []);
 
   const draw = useCallback(() => {

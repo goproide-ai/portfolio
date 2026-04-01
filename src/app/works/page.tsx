@@ -144,7 +144,7 @@ export default function Works() {
       <HexGrid />
 
       <div className="relative z-10 py-20 px-6">
-        <div className="max-w-6xl mx-auto">
+        <div className="mx-auto max-w-[1800px]">
           {/* Header */}
           <div className="mb-16">
             <p className="font-mono text-[10px] tracking-[0.5em] text-[#8B5CF6] uppercase mb-4">Selected Works</p>
@@ -152,7 +152,7 @@ export default function Works() {
           </div>
 
           {/* Grid */}
-          <div className="works-grid grid md:grid-cols-2 lg:grid-cols-3 gap-px bg-[#1a1a1a]">
+          <div className="works-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-px bg-[#1a1a1a]">
             {projects.map((p) => (
               <div
                 key={p.id}
@@ -204,7 +204,7 @@ export default function Works() {
                         src={p.img}
                         alt={p.title}
                         fill
-                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, (max-width: 1280px) 33vw, 25vw"
                         className={`${"imgFit" in p && p.imgFit === "contain" ? "object-contain" : "object-cover"} transition-transform duration-500 ease-out group-hover:scale-105`}
                         style={{ transformOrigin: "center center", objectPosition: ("imgFit" in p && p.imgFit === "cover-top") ? "50% 18%" : "center" }}
                       />
