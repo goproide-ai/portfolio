@@ -24,22 +24,22 @@ export default function PulseRings() {
     const my = mouseRef.current.y;
     const t  = (timeRef.current += 1);
 
-    // Spawn new ring every 80 frames
-    if (t - lastSpawn.current > 80) {
+    // Spawn new ring every 60 frames
+    if (t - lastSpawn.current > 60) {
       ringsRef.current.push({ birth: t });
       lastSpawn.current = t;
-      if (ringsRef.current.length > 8) ringsRef.current.shift();
+      if (ringsRef.current.length > 16) ringsRef.current.shift();
     }
 
     ctx.clearRect(0, 0, W, H);
 
     // Static background rings centred on page
     const cx = W / 2, cy = H / 2;
-    for (let i = 1; i <= 5; i++) {
+    for (let i = 1; i <= 8; i++) {
       const pulse = 1 + 0.03 * Math.sin(t * 0.025 + i);
       ctx.beginPath();
-      ctx.arc(cx, cy, (80 * i) * pulse, 0, Math.PI * 2);
-      ctx.strokeStyle = `rgba(139,92,246,${(0.03 + 0.01 * (6 - i)).toFixed(2)})`;
+      ctx.arc(cx, cy, (70 * i) * pulse, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(139,92,246,${(0.04 + 0.01 * (9 - i)).toFixed(2)})`;
       ctx.lineWidth = 0.5;
       ctx.stroke();
     }
@@ -48,10 +48,10 @@ export default function PulseRings() {
     if (mx > 0) {
       for (const ring of ringsRef.current) {
         const age  = t - ring.birth;
-        const maxAge = 120;
+        const maxAge = 640;
         if (age > maxAge) continue;
         const progress = age / maxAge;
-        const r = progress * 160;
+        const r = progress * 200;
         const a = (1 - progress) * 0.35;
         ctx.beginPath();
         ctx.arc(mx, my, r, 0, Math.PI * 2);

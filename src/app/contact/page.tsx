@@ -92,7 +92,7 @@ export default function Contact() {
               <button
                 onClick={toggleMusic}
                 className="block w-full text-base md:text-2xl font-bold tracking-tight hover:text-[#8B5CF6] transition-colors cursor-pointer text-left"
-              style={{ color: "#333" }}
+              style={{ color: "#fff" }}
               >
                 Congratulations to Busan on being selected as the World Design Capital 2028! {playing ? "♫" : "♪"}
               </button>
@@ -193,6 +193,7 @@ export default function Contact() {
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-3 group"
+                  onClick={(e) => { e.preventDefault(); window.open("https://www.instagram.com/sungchan.design", "_blank", "noopener,noreferrer"); }}
                 >
                   <span className="w-6 h-[1px] bg-[#333] group-hover:bg-[#8B5CF6] transition-colors" />
                   <span className="font-mono text-xs text-[#666] group-hover:text-[#8B5CF6] transition-colors tracking-[0.1em]">
