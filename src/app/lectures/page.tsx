@@ -200,7 +200,7 @@ export default function Lectures() {
         }
       `}</style>
 
-      <div className="relative z-10 max-w-4xl mx-auto px-6 py-20">
+      <div className="relative z-10 max-w-7xl mx-auto px-6 lg:px-16 py-20">
 
         {/* ─── Header ─── */}
         <div className="mb-40" ref={r} data-anim="blur">
@@ -385,8 +385,8 @@ export default function Lectures() {
               <p className="bg-[#111] px-3 py-2 font-mono text-[8px] text-[#8B5CF6]">AI-Generated</p>
             </div>
             <div className="rounded-lg overflow-hidden border border-[#1a1a1a]">
-              <Image src={`${P}/image89.jpeg`} alt="AI generated model shot" width={600} height={400} className="w-full h-auto" />
-              <p className="bg-[#111] px-3 py-2 font-mono text-[8px] text-[#8B5CF6]">AI-Generated</p>
+              <Image src={`${P}/image89.jpeg`} alt="Mockup photo - man wearing device at table" width={600} height={400} className="w-full h-auto" />
+              <p className="bg-[#111] px-3 py-2 font-mono text-[8px] text-[#666]">Mockup Photo</p>
             </div>
             <div className="rounded-lg overflow-hidden border border-[#1a1a1a]">
               <Image src={`${P}/image90.jpeg`} alt="AI generated model shot" width={600} height={400} className="w-full h-auto" />
