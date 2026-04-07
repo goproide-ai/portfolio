@@ -35,12 +35,16 @@ function useReveal() {
 /* ── Chapter divider with animated line ── */
 function ChapterDivider({ label, title, r }: { label: string; title: string; r: (el: HTMLElement | null) => void }) {
   return (
-    <div className="mt-20 mb-16" ref={r} data-anim="chapter">
-      <div className="anim-divider-line w-full h-[1px] bg-[#1a1a1a] mb-16" />
-      <p className="font-mono text-[10px] tracking-[0.6em] text-[#38BDF8] uppercase mb-5 anim-fade-right">{label}</p>
-      <h2 className="text-2xl md:text-3xl font-medium text-white mb-6 anim-title">{title}</h2>
-      <div className="anim-line h-[1px] bg-gradient-to-r from-[#8B5CF6] via-[#38BDF8] to-transparent" />
-    </div>
+    <>
+      {/* Explicit spacer — creates clear visual break between chapters */}
+      <div className="h-[30vh]" />
+      <div className="mb-16" ref={r} data-anim="chapter">
+        <div className="anim-divider-line w-full h-[1px] bg-[#1a1a1a] mb-16" />
+        <p className="font-mono text-[10px] tracking-[0.6em] text-[#38BDF8] uppercase mb-5 anim-fade-right">{label}</p>
+        <h2 className="text-2xl md:text-3xl font-medium text-white mb-6 anim-title">{title}</h2>
+        <div className="anim-line h-[1px] bg-gradient-to-r from-[#8B5CF6] via-[#38BDF8] to-transparent" />
+      </div>
+    </>
   );
 }
 
@@ -225,7 +229,7 @@ export default function Lectures() {
         {/* ═══════════════════════════════════════════════
             Chapter 1: Introduction
         ═══════════════════════════════════════════════ */}
-        <section className="mb-56">
+        <section className="mb-12">
           <ChapterDivider label="Chapter 1" title="Introduction" r={r} />
 
           <div ref={r} data-anim="highlight">
@@ -254,7 +258,7 @@ export default function Lectures() {
         {/* ═══════════════════════════════════════════════
             Chapter 2: AI Design Workshops
         ═══════════════════════════════════════════════ */}
-        <section className="mb-56">
+        <section className="mb-12">
           <ChapterDivider label="Chapter 2" title="Generative AI Design Lecture" r={r} />
 
           <div ref={r} data-anim="fade-up">
@@ -296,7 +300,7 @@ export default function Lectures() {
         {/* ═══════════════════════════════════════════════
             Case Study: Sleev
         ═══════════════════════════════════════════════ */}
-        <section className="mb-56">
+        <section className="mb-12">
           <ChapterDivider label="Case Study" title="Sleev — Design Process with AI" r={r} />
 
           <div ref={r} data-anim="highlight">
@@ -334,7 +338,7 @@ export default function Lectures() {
         {/* ═══════════════════════════════════════════════
             Chapter 3: AI Case Studies
         ═══════════════════════════════════════════════ */}
-        <section className="mb-56">
+        <section className="mb-12">
           <ChapterDivider label="Chapter 3" title="Generative AI Case Studies" r={r} />
 
           {/* --- AI Model Creation --- */}
@@ -450,7 +454,7 @@ export default function Lectures() {
         {/* ═══════════════════════════════════════════════
             Chapter 4: AI Mindsets
         ═══════════════════════════════════════════════ */}
-        <section className="mb-56">
+        <section className="mb-12">
           <ChapterDivider label="Chapter 4" title="AI 시대에 살아남는 디자이너" r={r} />
 
           <div ref={r} data-anim="glow">
