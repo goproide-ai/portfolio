@@ -1,6 +1,28 @@
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans:ital,wght@0,100..900;1,100..900&display=swap');
 @import "tailwindcss";
 
+@font-face {
+  font-family: 'Samsung Sharp Sans';
+  src: url('/fonts/SamsungSharpSans-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Samsung Sharp Sans';
+  src: url('/fonts/samsungsharpsans-medium.otf') format('opentype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Samsung Sharp Sans';
+  src: url('/fonts/samsungsharpsans-bold.otf') format('opentype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   --background: #0a0a0a;
   --foreground: #ededed;
@@ -18,7 +40,7 @@
   --color-foreground: var(--foreground);
   --color-accent-purple: var(--accent-purple);
   --color-accent-sky: var(--accent-sky);
-  --font-sans: 'Noto Sans', 'Samsung Sharp Sans', Arial, Helvetica, sans-serif;
+  --font-sans: 'Samsung Sharp Sans', 'Noto Sans', Arial, Helvetica, sans-serif;
   --font-mono: 'Geist Mono', 'Courier New', monospace;
 }
 
