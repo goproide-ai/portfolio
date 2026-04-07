@@ -35,13 +35,11 @@ function useReveal() {
 /* ── Chapter divider with animated line ── */
 function ChapterDivider({ label, title, r }: { label: string; title: string; r: (el: HTMLElement | null) => void }) {
   return (
-    <div className="pt-32 pb-20 relative" ref={r} data-anim="chapter">
-      {/* Background glow burst */}
-      <div className="anim-burst absolute -left-20 top-1/2 -translate-y-1/2 w-[300px] h-[300px] rounded-full pointer-events-none" />
-      <div className="anim-divider-line w-full h-[1px] bg-[#1a1a1a] mb-12" />
-      <p className="font-mono text-[10px] tracking-[0.6em] text-[#38BDF8] uppercase mb-6 anim-fade-right relative">{label}</p>
-      <h2 className="text-4xl md:text-5xl font-bold text-white mb-8 anim-title relative">{title}</h2>
-      <div className="anim-line h-[2px] bg-gradient-to-r from-[#8B5CF6] via-[#38BDF8] to-transparent relative" />
+    <div className="mt-20 mb-16" ref={r} data-anim="chapter">
+      <div className="anim-divider-line w-full h-[1px] bg-[#1a1a1a] mb-16" />
+      <p className="font-mono text-[10px] tracking-[0.6em] text-[#38BDF8] uppercase mb-5 anim-fade-right">{label}</p>
+      <h2 className="text-2xl md:text-3xl font-medium text-white mb-6 anim-title">{title}</h2>
+      <div className="anim-line h-[1px] bg-gradient-to-r from-[#8B5CF6] via-[#38BDF8] to-transparent" />
     </div>
   );
 }
@@ -68,14 +66,6 @@ export default function Lectures() {
 
         /* ── Chapter divider: dramatic entrance ── */
         [data-anim="chapter"] { opacity: 1; }
-        [data-anim="chapter"] .anim-burst {
-          background: radial-gradient(circle, rgba(139,92,246,0.25), transparent 70%);
-          opacity: 0; transform: scale(0);
-          transition: all 1.2s cubic-bezier(0.16, 1, 0.3, 1);
-        }
-        [data-anim="chapter"].revealed .anim-burst {
-          opacity: 1; transform: scale(1) translateY(-50%);
-        }
         [data-anim="chapter"] .anim-divider-line {
           transform: scaleX(0); transform-origin: left;
           transition: transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
