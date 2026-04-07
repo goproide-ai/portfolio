@@ -35,10 +35,13 @@ function useReveal() {
 /* ── Chapter divider with animated line ── */
 function ChapterDivider({ label, title, r }: { label: string; title: string; r: (el: HTMLElement | null) => void }) {
   return (
-    <div className="pt-12 pb-16" ref={r} data-anim="chapter">
-      <p className="font-mono text-[9px] tracking-[0.5em] text-[#38BDF8] uppercase mb-5 anim-fade-right">{label}</p>
-      <h2 className="text-3xl md:text-4xl font-medium text-white mb-6 anim-title">{title}</h2>
-      <div className="anim-line h-[1px] bg-gradient-to-r from-[#8B5CF6] to-[#38BDF8]" />
+    <div className="pt-32 pb-20 relative" ref={r} data-anim="chapter">
+      {/* Background glow burst */}
+      <div className="anim-burst absolute -left-20 top-1/2 -translate-y-1/2 w-[300px] h-[300px] rounded-full pointer-events-none" />
+      <div className="anim-divider-line w-full h-[1px] bg-[#1a1a1a] mb-12" />
+      <p className="font-mono text-[10px] tracking-[0.6em] text-[#38BDF8] uppercase mb-6 anim-fade-right relative">{label}</p>
+      <h2 className="text-4xl md:text-5xl font-bold text-white mb-8 anim-title relative">{title}</h2>
+      <div className="anim-line h-[2px] bg-gradient-to-r from-[#8B5CF6] via-[#38BDF8] to-transparent relative" />
     </div>
   );
 }
@@ -63,123 +66,150 @@ export default function Lectures() {
         [data-anim] { opacity: 0; }
         [data-anim].revealed { opacity: 1; }
 
-        /* Chapter title animation */
+        /* ── Chapter divider: dramatic entrance ── */
+        [data-anim="chapter"] { opacity: 1; }
+        [data-anim="chapter"] .anim-burst {
+          background: radial-gradient(circle, rgba(139,92,246,0.25), transparent 70%);
+          opacity: 0; transform: scale(0);
+          transition: all 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        [data-anim="chapter"].revealed .anim-burst {
+          opacity: 1; transform: scale(1) translateY(-50%);
+        }
+        [data-anim="chapter"] .anim-divider-line {
+          transform: scaleX(0); transform-origin: left;
+          transition: transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        [data-anim="chapter"].revealed .anim-divider-line {
+          transform: scaleX(1);
+        }
         [data-anim="chapter"] .anim-title {
-          opacity: 0; transform: translateY(30px);
-          transition: all 0.9s cubic-bezier(0.16, 1, 0.3, 1);
+          opacity: 0; transform: translateY(60px) scale(0.9);
+          transition: all 1s cubic-bezier(0.16, 1, 0.3, 1) 0.2s;
         }
         [data-anim="chapter"].revealed .anim-title {
-          opacity: 1; transform: translateY(0);
+          opacity: 1; transform: translateY(0) scale(1);
         }
         [data-anim="chapter"] .anim-fade-right {
-          opacity: 0; transform: translateX(-20px);
-          transition: all 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.1s;
+          opacity: 0; transform: translateX(-40px);
+          transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.1s;
         }
         [data-anim="chapter"].revealed .anim-fade-right {
           opacity: 1; transform: translateX(0);
         }
         [data-anim="chapter"] .anim-line {
-          width: 0; transition: width 1s cubic-bezier(0.16, 1, 0.3, 1) 0.3s;
+          width: 0; transition: width 1.2s cubic-bezier(0.16, 1, 0.3, 1) 0.5s;
         }
         [data-anim="chapter"].revealed .anim-line {
-          width: 80px;
-        }
-        [data-anim="chapter"] {
-          opacity: 1; /* container always visible */
+          width: 120px;
         }
 
-        /* Fade up */
+        /* ── Fade up (body text) ── */
         [data-anim="fade-up"] {
-          transform: translateY(40px);
-          transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+          transform: translateY(60px);
+          transition: all 1s cubic-bezier(0.16, 1, 0.3, 1);
         }
         [data-anim="fade-up"].revealed {
           opacity: 1; transform: translateY(0);
         }
 
-        /* Slide from left */
+        /* ── Slide from left (dramatic) ── */
         [data-anim="slide-left"] {
-          transform: translateX(-50px);
-          transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+          transform: translateX(-80px) rotate(-1deg);
+          transition: all 1s cubic-bezier(0.16, 1, 0.3, 1);
         }
         [data-anim="slide-left"].revealed {
-          opacity: 1; transform: translateX(0);
+          opacity: 1; transform: translateX(0) rotate(0deg);
         }
 
-        /* Slide from right */
+        /* ── Slide from right ── */
         [data-anim="slide-right"] {
-          transform: translateX(50px);
-          transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+          transform: translateX(80px) rotate(1deg);
+          transition: all 1s cubic-bezier(0.16, 1, 0.3, 1);
         }
         [data-anim="slide-right"].revealed {
-          opacity: 1; transform: translateX(0);
+          opacity: 1; transform: translateX(0) rotate(0deg);
         }
 
-        /* Scale up */
+        /* ── Scale up (images) ── */
         [data-anim="scale"] {
-          transform: scale(0.92);
-          transition: all 0.9s cubic-bezier(0.16, 1, 0.3, 1);
+          transform: scale(0.85);
+          filter: brightness(0.5);
+          transition: all 1.1s cubic-bezier(0.16, 1, 0.3, 1);
         }
         [data-anim="scale"].revealed {
-          opacity: 1; transform: scale(1);
+          opacity: 1; transform: scale(1); filter: brightness(1);
         }
 
-        /* Blur in */
+        /* ── Blur in (header/footer) ── */
         [data-anim="blur"] {
-          filter: blur(12px); transform: translateY(20px);
-          transition: all 1s cubic-bezier(0.16, 1, 0.3, 1);
+          filter: blur(20px); transform: translateY(40px);
+          transition: all 1.2s cubic-bezier(0.16, 1, 0.3, 1);
         }
         [data-anim="blur"].revealed {
           opacity: 1; filter: blur(0); transform: translateY(0);
         }
 
-        /* Text highlight sweep */
+        /* ── Highlight sweep (key phrases) ── */
+        [data-anim="highlight"] {
+          opacity: 1;
+        }
+        [data-anim="highlight"] > * {
+          opacity: 0; transform: translateY(30px);
+          transition: all 0.9s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        [data-anim="highlight"].revealed > * {
+          opacity: 1; transform: translateY(0);
+        }
         [data-anim="highlight"] .highlight-text {
           background-size: 0% 100%;
-          background-image: linear-gradient(90deg, rgba(139,92,246,0.15), rgba(56,189,248,0.1));
+          background-image: linear-gradient(90deg, rgba(139,92,246,0.3), rgba(56,189,248,0.15));
           background-repeat: no-repeat;
-          transition: background-size 1.2s cubic-bezier(0.16, 1, 0.3, 1) 0.3s;
-          padding: 2px 0;
+          padding: 2px 6px; border-radius: 3px;
+          transition: background-size 1.5s cubic-bezier(0.16, 1, 0.3, 1) 0.6s;
         }
         [data-anim="highlight"].revealed .highlight-text {
           background-size: 100% 100%;
         }
 
-        /* Stagger children */
+        /* ── Stagger children ── */
+        [data-anim="stagger"] { opacity: 1; }
         [data-anim="stagger"] > * {
-          opacity: 0; transform: translateY(20px);
-          transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+          opacity: 0; transform: translateY(30px) scale(0.95);
+          transition: all 0.7s cubic-bezier(0.16, 1, 0.3, 1);
         }
-        [data-anim="stagger"].revealed > *:nth-child(1) { opacity: 1; transform: translateY(0); transition-delay: 0.05s; }
-        [data-anim="stagger"].revealed > *:nth-child(2) { opacity: 1; transform: translateY(0); transition-delay: 0.15s; }
-        [data-anim="stagger"].revealed > *:nth-child(3) { opacity: 1; transform: translateY(0); transition-delay: 0.25s; }
-        [data-anim="stagger"].revealed > *:nth-child(4) { opacity: 1; transform: translateY(0); transition-delay: 0.35s; }
+        [data-anim="stagger"].revealed > *:nth-child(1) { opacity: 1; transform: translateY(0) scale(1); transition-delay: 0.05s; }
+        [data-anim="stagger"].revealed > *:nth-child(2) { opacity: 1; transform: translateY(0) scale(1); transition-delay: 0.18s; }
+        [data-anim="stagger"].revealed > *:nth-child(3) { opacity: 1; transform: translateY(0) scale(1); transition-delay: 0.31s; }
+        [data-anim="stagger"].revealed > *:nth-child(4) { opacity: 1; transform: translateY(0) scale(1); transition-delay: 0.44s; }
 
-        /* Clip reveal (image wipe) */
+        /* ── Clip reveal (image wipe) ── */
         [data-anim="clip"] {
           clip-path: inset(0 100% 0 0);
-          transition: clip-path 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+          transition: clip-path 1.4s cubic-bezier(0.16, 1, 0.3, 1);
         }
         [data-anim="clip"].revealed {
           opacity: 1; clip-path: inset(0 0% 0 0);
         }
 
-        /* Quote glow */
+        /* ── Quote glow (dramatic) ── */
         [data-anim="glow"] {
           text-shadow: 0 0 0px transparent;
-          transform: translateY(20px);
-          transition: all 1s cubic-bezier(0.16, 1, 0.3, 1);
+          transform: translateY(40px) scale(0.95);
+          filter: blur(8px);
+          transition: all 1.2s cubic-bezier(0.16, 1, 0.3, 1);
         }
         [data-anim="glow"].revealed {
-          opacity: 1; transform: translateY(0);
-          text-shadow: 0 0 40px rgba(139,92,246,0.3);
+          opacity: 1; transform: translateY(0) scale(1);
+          filter: blur(0);
+          text-shadow: 0 0 60px rgba(139,92,246,0.5), 0 0 120px rgba(56,189,248,0.2);
         }
       `}</style>
 
       <div className="relative z-10 max-w-4xl mx-auto px-6 py-20">
 
         {/* ─── Header ─── */}
-        <div className="mb-32" ref={r} data-anim="blur">
+        <div className="mb-40" ref={r} data-anim="blur">
           <p className="font-mono text-[10px] tracking-[0.5em] text-[#8B5CF6] uppercase mb-4">
             Lecture Material
           </p>
@@ -196,7 +226,7 @@ export default function Lectures() {
         </div>
 
         {/* Hero */}
-        <div className="mb-40" ref={r} data-anim="scale">
+        <div className="mb-48" ref={r} data-anim="scale">
           <div className="rounded-lg overflow-hidden">
             <Image src={`${P}/image1.png`} alt="Design in the Age of AI" width={1400} height={700} className="w-full h-auto" />
           </div>
@@ -205,7 +235,7 @@ export default function Lectures() {
         {/* ═══════════════════════════════════════════════
             Chapter 1: Introduction
         ═══════════════════════════════════════════════ */}
-        <section className="mb-40">
+        <section className="mb-56">
           <ChapterDivider label="Chapter 1" title="Introduction" r={r} />
 
           <div ref={r} data-anim="highlight">
@@ -234,7 +264,7 @@ export default function Lectures() {
         {/* ═══════════════════════════════════════════════
             Chapter 2: AI Design Workshops
         ═══════════════════════════════════════════════ */}
-        <section className="mb-40">
+        <section className="mb-56">
           <ChapterDivider label="Chapter 2" title="Generative AI Design Lecture" r={r} />
 
           <div ref={r} data-anim="fade-up">
@@ -276,7 +306,7 @@ export default function Lectures() {
         {/* ═══════════════════════════════════════════════
             Case Study: Sleev
         ═══════════════════════════════════════════════ */}
-        <section className="mb-40">
+        <section className="mb-56">
           <ChapterDivider label="Case Study" title="Sleev — Design Process with AI" r={r} />
 
           <div ref={r} data-anim="highlight">
@@ -314,7 +344,7 @@ export default function Lectures() {
         {/* ═══════════════════════════════════════════════
             Chapter 3: AI Case Studies
         ═══════════════════════════════════════════════ */}
-        <section className="mb-40">
+        <section className="mb-56">
           <ChapterDivider label="Chapter 3" title="Generative AI Case Studies" r={r} />
 
           {/* --- AI Model Creation --- */}
@@ -430,7 +460,7 @@ export default function Lectures() {
         {/* ═══════════════════════════════════════════════
             Chapter 4: AI Mindsets
         ═══════════════════════════════════════════════ */}
-        <section className="mb-40">
+        <section className="mb-56">
           <ChapterDivider label="Chapter 4" title="AI 시대에 살아남는 디자이너" r={r} />
 
           <div ref={r} data-anim="glow">
