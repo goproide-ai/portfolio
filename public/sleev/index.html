@@ -1,0 +1,1879 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Sleev — Arm Support Robot for Daily Purposes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+<script src="https://unpkg.com/lenis@1.1.13/dist/lenis.min.js"></script>
+<style>
+  :root {
+    --bg-0: #0a0a0c;
+    --bg-1: #111114;
+    --bg-cream: #efece4;
+    --bg-light: #f5f3ec;
+    --ink-light: #f3f1ec;
+    --ink-light-dim: rgba(243, 241, 236, 0.55);
+    --ink-light-faint: rgba(243, 241, 236, 0.32);
+    /* Softer, more grey-leaning dark inks */
+    --ink-dark: #2f2f33;
+    --ink-dark-soft: #4a4a50;
+    --ink-dark-dim: rgba(60, 60, 66, 0.62);
+    --ink-dark-faint: rgba(60, 60, 66, 0.42);
+    --accent: #c9c0a9;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    background: var(--bg-0);
+    color: var(--ink-light);
+    font-family: 'Inter', 'Pretendard Variable', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-weight: 300;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    letter-spacing: -0.011em;
+  }
+  html, body { overflow-x: clip; }
+  img, video { display: block; max-width: 100%; }
+  a { color: inherit; text-decoration: none; }
+
+  /* Nav */
+  .nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    padding: 18px 36px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(10, 10, 12, 0.5);
+    backdrop-filter: blur(22px) saturate(160%);
+    -webkit-backdrop-filter: blur(22px) saturate(160%);
+    border-bottom: 0.5px solid rgba(255,255,255,0.05);
+    font-size: 13px;
+    font-weight: 400;
+    transition: background 0.5s, color 0.5s, border-color 0.5s;
+  }
+  .nav.is-light {
+    background: rgba(245, 243, 236, 0.7);
+    color: var(--ink-dark);
+    border-bottom-color: rgba(0,0,0,0.06);
+  }
+  .nav.is-light .brand { color: var(--ink-dark); }
+  .nav.is-light a { color: var(--ink-dark-soft); }
+  .nav.is-light a:hover { color: var(--ink-dark); }
+  .nav.is-light .cta { border-color: rgba(0,0,0,0.18); }
+  .nav .brand {
+    font-size: 22px;
+    font-weight: 400;
+    letter-spacing: -0.02em;
+    font-family: 'Instrument Serif', serif;
+    font-style: italic;
+  }
+  .nav ul { list-style: none; display: flex; gap: 30px; }
+  .nav ul a { color: var(--ink-light-dim); transition: color 0.4s; }
+  .nav ul a:hover { color: var(--ink-light); }
+  .nav .cta {
+    padding: 8px 18px;
+    border: 1px solid rgba(255,255,255,0.18);
+    border-radius: 999px;
+    transition: background 0.4s, border-color 0.4s;
+  }
+  .nav .cta:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.35); }
+
+  /* HERO — full-bleed product photo, type overlaid below */
+  .hero {
+    position: relative;
+    min-height: 100vh;
+    width: 100%;
+    overflow: hidden;
+    background:
+      radial-gradient(ellipse 70% 60% at 50% 0%, #f7f5ee 0%, #e9e5db 70%, #ddd9cd 100%);
+    color: var(--ink-dark);
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: center;
+    padding: 110px 0 60px;
+  }
+  .hero-eyebrow {
+    text-align: center;
+    font-size: 11px;
+    letter-spacing: 0.34em;
+    text-transform: uppercase;
+    color: var(--ink-dark-dim);
+    margin-bottom: 28px;
+    opacity: 0;
+  }
+  .hero-eyebrow .dot {
+    display: inline-block;
+    width: 5px; height: 5px; border-radius: 50%;
+    background: var(--ink-dark-soft);
+    margin-right: 10px;
+    vertical-align: middle;
+  }
+  .hero-image {
+    position: relative;
+    width: min(900px, 78vw);
+    max-height: 72vh;
+    margin: 0 auto;
+    aspect-ratio: 1/1;
+    opacity: 0;
+  }
+  .hero-image img {
+    width: 100%; height: 100%;
+    object-fit: contain;
+  }
+  .hero-headline {
+    text-align: center;
+    margin-top: 8px;
+    pointer-events: none;
+  }
+  .hero-headline h1 {
+    font-family: 'Instrument Serif', serif;
+    font-style: italic;
+    font-weight: 400;
+    font-size: clamp(56px, 11vw, 160px);
+    line-height: 0.9;
+    letter-spacing: -0.04em;
+    color: var(--ink-dark);
+    filter: blur(28px);
+    opacity: 0;
+  }
+  .hero-tagline {
+    text-align: center;
+    margin-top: 24px;
+    font-family: 'Instrument Serif', serif;
+    font-style: italic;
+    font-size: clamp(20px, 2.4vw, 30px);
+    color: var(--ink-dark-soft);
+    opacity: 0;
+  }
+  .hero-scroll {
+    position: absolute;
+    bottom: 32px; left: 50%;
+    transform: translateX(-50%);
+    font-size: 10px;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: var(--ink-dark-faint);
+    opacity: 0;
+  }
+  .hero-scroll .line {
+    display: block;
+    width: 1px; height: 36px;
+    background: linear-gradient(to bottom, transparent, var(--ink-dark-faint), transparent);
+    margin: 10px auto 0;
+    animation: scrollPulse 2.4s ease-in-out infinite;
+  }
+  @keyframes scrollPulse {
+    0%, 100% { transform: translateY(0); opacity: 0.4; }
+    50% { transform: translateY(8px); opacity: 1; }
+  }
+
+  /* Manifesto — Behance opener text block */
+  .manifesto {
+    background: var(--bg-cream);
+    color: var(--ink-dark);
+    padding: 200px 40px 220px;
+    text-align: center;
+  }
+  .manifesto .container { max-width: 980px; margin: 0 auto; }
+  .manifesto .eyebrow {
+    font-size: 11px;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: var(--ink-dark-dim);
+    margin-bottom: 32px;
+  }
+  .manifesto h2 {
+    font-family: 'Instrument Serif', serif;
+    font-style: italic;
+    font-weight: 400;
+    font-size: clamp(40px, 5.5vw, 88px);
+    line-height: 1.05;
+    letter-spacing: -0.025em;
+    color: var(--ink-dark);
+    margin-bottom: 32px;
+  }
+  .manifesto p {
+    font-size: 15px;
+    line-height: 1.75;
+    color: var(--ink-dark-soft);
+    max-width: 78ch;
+    margin: 0 auto 18px;
+  }
+  .manifesto p.kr { max-width: 88ch; word-break: normal; overflow-wrap: anywhere; }
+
+  /* Pinned vertical-translate feature stack — replaces the old spin */
+  .pin-feat {
+    position: relative;
+    /* 3 features × 100vh + entry/exit cushion */
+    height: 420vh;
+    background: var(--bg-cream);
+    color: var(--ink-dark);
+  }
+  .pin-feat-stage {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    width: 100%;
+    overflow: hidden;
+    display: grid;
+    grid-template-columns: 1.05fr 1fr;
+    align-items: center;
+    gap: 80px;
+    padding: 0 8vw;
+  }
+  .pin-feat-media {
+    position: relative;
+    aspect-ratio: 4/5;
+    background: #e2ddce;
+    overflow: hidden;
+    border-radius: 2px;
+    isolation: isolate;
+  }
+  .pin-feat-media .layer {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    will-change: opacity, transform, filter, clip-path;
+    transition: none;
+    transform-origin: center center;
+  }
+  .pin-feat-media .layer img,
+  .pin-feat-media .layer video {
+    width: 100%; height: 100%;
+    object-fit: cover;
+    will-change: transform;
+  }
+  /* Subtle vignette to deepen cinematic feel */
+  .pin-feat-media::after {
+    content: '';
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse at center, rgba(0,0,0,0) 55%, rgba(0,0,0,0.18) 100%);
+    pointer-events: none;
+    z-index: 3;
+  }
+  .pin-feat-text {
+    position: relative;
+    height: 60vh;
+    overflow: hidden;
+  }
+  .pin-feat-text .panel {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%;
+    opacity: 0;
+    will-change: opacity, transform, filter;
+  }
+  /* Per-word reveal pieces — slide + fade (no overflow clip; italic overhang stays clean) */
+  .pin-feat-text .panel .reveal {
+    display: inline-block;
+    line-height: 1.05;
+  }
+  .pin-feat-text .panel .reveal > span {
+    display: inline-block;
+    will-change: transform, opacity;
+    line-height: 1.05;
+  }
+  .pin-feat-text .num {
+    font-family: 'Instrument Serif', serif;
+    font-style: italic;
+    font-size: 14px;
+    color: var(--ink-dark-faint);
+    margin-bottom: 24px;
+    letter-spacing: 0.05em;
+  }
+  .pin-feat-text .num span {
+    display: inline-block;
+    width: 32px;
+    margin-right: 12px;
+    border-top: 1px solid var(--ink-dark-faint);
+    vertical-align: middle;
+  }
+  .pin-feat-text h3 {
+    font-family: 'Instrument Serif', serif;
+    font-style: italic;
+    font-weight: 400;
+    font-size: clamp(36px, 4.6vw, 64px);
+    line-height: 1.05;
+    letter-spacing: -0.025em;
+    color: var(--ink-dark);
+    margin-bottom: 28px;
+  }
+  .pin-feat-text p {
+    font-size: 15px;
+    line-height: 1.75;
+    color: var(--ink-dark-soft);
+    max-width: 44ch;
+    margin-bottom: 14px;
+  }
+  .pin-feat-text .meta {
+    margin-top: 36px;
+    display: flex;
+    gap: 40px;
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--ink-dark-faint);
+  }
+  .pin-feat-text .meta strong {
+    display: block;
+    font-family: 'Instrument Serif', serif;
+    font-style: italic;
+    font-size: 22px;
+    color: var(--ink-dark);
+    text-transform: none;
+    letter-spacing: 0;
+    font-weight: 400;
+    margin-top: 6px;
+  }
+  .pin-feat-progress {
+    position: absolute;
+    left: 8vw; bottom: 60px;
+    display: flex;
+    gap: 18px;
+    z-index: 5;
+  }
+  .pin-feat-progress span {
+    width: 36px; height: 1px;
+    background: var(--ink-dark-faint);
+    position: relative;
+  }
+  .pin-feat-progress span::after {
+    content: '';
+    position: absolute; inset: 0;
+    background: var(--ink-dark);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .pin-feat-progress span.is-active::after { transform: scaleX(1); }
+
+  /* Parallax */
+  .parallax-bleed {
+    position: relative;
+    height: 110vh;
+    overflow: hidden;
+    background: #000;
+  }
+  .parallax-bleed video,
+  .parallax-bleed img {
+    position: absolute;
+    top: -10%;
+    left: 0;
+    width: 100%;
+    height: 120%;
+    object-fit: cover;
+    will-change: transform;
+  }
+  .parallax-bleed .vignette {
+    position: absolute; inset: 0;
+    background: linear-gradient(180deg, rgba(0,0,0,0.3) 0%, transparent 30%, transparent 70%, rgba(0,0,0,0.7) 100%);
+  }
+  .parallax-bleed .caption {
+    position: absolute;
+    left: 6vw; bottom: 12vh;
+    z-index: 2;
+    max-width: 560px;
+    color: #fff;
+  }
+  .parallax-bleed .caption .eyebrow {
+    font-size: 11px; letter-spacing: 0.3em; text-transform: uppercase;
+    color: rgba(255,255,255,0.6); margin-bottom: 16px;
+  }
+  .parallax-bleed .caption h2 {
+    font-family: 'Instrument Serif', serif;
+    font-style: italic;
+    font-weight: 400;
+    font-size: clamp(40px, 6vw, 88px);
+    line-height: 1.0;
+    letter-spacing: -0.025em;
+    text-shadow: 0 4px 30px rgba(0,0,0,0.5);
+  }
+
+  /* Tech architecture — light cream */
+  .tech {
+    background: var(--bg-light);
+    color: var(--ink-dark);
+    padding: 200px 40px;
+  }
+  .tech .container { max-width: 1280px; margin: 0 auto; }
+  .tech .header {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 80px;
+    margin-bottom: 100px;
+    align-items: end;
+  }
+  .tech .eyebrow {
+    font-size: 11px; letter-spacing: 0.3em; text-transform: uppercase;
+    color: var(--ink-dark-dim); margin-bottom: 24px;
+  }
+  .tech h2 {
+    font-family: 'Instrument Serif', serif;
+    font-style: italic;
+    font-weight: 400;
+    font-size: clamp(40px, 5vw, 80px);
+    line-height: 1.0;
+    letter-spacing: -0.025em;
+    color: var(--ink-dark);
+  }
+  .tech .lead {
+    font-size: 16px;
+    line-height: 1.75;
+    color: var(--ink-dark-soft);
+    max-width: 44ch;
+  }
+  .specs {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1px;
+    background: rgba(0,0,0,0.08);
+    border-top: 1px solid rgba(0,0,0,0.08);
+    border-bottom: 1px solid rgba(0,0,0,0.08);
+    margin-bottom: 100px;
+  }
+  .spec { background: var(--bg-light); padding: 40px 28px; }
+  .spec .label {
+    font-size: 10px; letter-spacing: 0.28em; text-transform: uppercase;
+    color: var(--ink-dark-dim); margin-bottom: 18px;
+  }
+  .spec .value {
+    font-family: 'Instrument Serif', serif;
+    font-style: italic;
+    font-size: 30px;
+    line-height: 1.1;
+    font-weight: 400;
+    color: var(--ink-dark);
+    margin-bottom: 6px;
+  }
+  .spec .unit { font-size: 12px; color: var(--ink-dark-dim); }
+
+  .detail-grid {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    gap: 16px;
+  }
+  .detail-grid .item {
+    overflow: hidden;
+    background: #e2ddce;
+    position: relative;
+  }
+  .detail-grid .item img { width: 100%; height: 100%; object-fit: cover; }
+  .detail-grid .d1 img { object-position: center 35%; }
+  .detail-grid .item .label {
+    position: absolute;
+    bottom: 18px; left: 22px;
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--ink-dark-soft);
+    background: rgba(255,255,255,0.78);
+    backdrop-filter: blur(10px);
+    padding: 6px 12px;
+    border-radius: 100px;
+  }
+  .d1 { grid-column: span 5; }
+  .d2 { grid-column: span 7; aspect-ratio: 7/5; }
+  .d3 { grid-column: span 4; aspect-ratio: 1; }
+  .d4 { grid-column: span 4; aspect-ratio: 1; }
+  .d5 { grid-column: span 4; aspect-ratio: 1; }
+
+  /* Daily scenes */
+  .daily {
+    background: var(--bg-cream);
+    color: var(--ink-dark);
+    padding: 200px 40px;
+  }
+  .daily .container { max-width: 1280px; margin: 0 auto; }
+  .daily-intro { text-align: center; margin-bottom: 100px; }
+  .daily-intro h2 {
+    font-family: 'Instrument Serif', serif;
+    font-style: italic;
+    font-weight: 400;
+    font-size: clamp(48px, 7vw, 112px);
+    line-height: 0.95;
+    letter-spacing: -0.03em;
+    margin-bottom: 32px;
+    max-width: 18ch;
+    margin-inline: auto;
+    color: var(--ink-dark);
+  }
+  .daily-intro h2 em {
+    font-style: italic;
+    font-family: 'Instrument Serif', serif;
+    font-weight: 400;
+    color: var(--accent);
+  }
+  .daily-intro p {
+    font-size: 16px;
+    line-height: 1.75;
+    color: var(--ink-dark-soft);
+    max-width: 56ch;
+    margin: 0 auto;
+  }
+  .scenes {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 16px;
+  }
+  .scene {
+    overflow: hidden;
+    background: #d8d2c4;
+    position: relative;
+  }
+  .scene img { width: 100%; height: 100%; object-fit: cover; transition: transform 1.2s cubic-bezier(0.16, 1, 0.3, 1); }
+  .scene:hover img { transform: scale(1.04); }
+  .scene .caption {
+    position: absolute; inset: auto 0 0 0;
+    padding: 22px 26px;
+    background: linear-gradient(to top, rgba(0,0,0,0.5), transparent);
+    color: #fff;
+  }
+  .scene .caption .num { font-size: 11px; letter-spacing: 0.25em; opacity: 0.7; margin-bottom: 6px; }
+  .scene .caption .title {
+    font-family: 'Instrument Serif', serif;
+    font-style: italic;
+    font-size: 21px;
+    line-height: 1.2;
+    font-weight: 400;
+  }
+  .s1 { grid-column: span 4; aspect-ratio: 4/3; }
+  .s2 { grid-column: span 2; }
+  .scenes .s2 img { object-position: center 65%; }
+  .s3 { grid-column: span 2; aspect-ratio: 1; }
+  .s4 { grid-column: span 2; aspect-ratio: 1; }
+  .s5 { grid-column: span 2; aspect-ratio: 1; }
+
+  /* Capabilities — dark */
+  .capabilities {
+    background: var(--bg-0);
+    padding: 200px 40px;
+    color: var(--ink-light);
+  }
+  .capabilities .container { max-width: 1280px; margin: 0 auto; }
+  .capabilities .head { margin-bottom: 100px; max-width: 720px; }
+  .capabilities h2 {
+    font-family: 'Instrument Serif', serif;
+    font-style: italic;
+    font-weight: 400;
+    font-size: clamp(40px, 5vw, 76px);
+    line-height: 1.0;
+    letter-spacing: -0.025em;
+    margin-bottom: 24px;
+  }
+  .capabilities .head p {
+    font-size: 16px;
+    color: var(--ink-light-dim);
+    line-height: 1.75;
+    max-width: 50ch;
+  }
+  .cap-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 60px; }
+  .cap {
+    border-top: 1px solid rgba(255,255,255,0.12);
+    padding-top: 32px;
+  }
+  .cap .icon { width: 44px; height: 44px; margin-bottom: 28px; color: var(--accent); }
+  .cap h3 {
+    font-family: 'Instrument Serif', serif;
+    font-style: italic;
+    font-weight: 400;
+    font-size: 28px;
+    margin-bottom: 16px;
+    letter-spacing: -0.015em;
+  }
+  .cap p { font-size: 14px; line-height: 1.75; color: var(--ink-light-dim); }
+
+  /* PROCESS — dark, between Capabilities & Award */
+  .process { background: var(--bg-0); padding: 200px 40px; color: var(--ink-light); border-top: 0.5px solid rgba(255,255,255,0.04); }
+  .process .container { max-width: 1280px; margin: 0 auto; }
+  .process .head { margin-bottom: 100px; max-width: 760px; }
+  .process .eyebrow {
+    font-size: 11px; letter-spacing: 0.3em; text-transform: uppercase;
+    color: var(--accent); margin-bottom: 24px;
+  }
+  .process h2 {
+    font-family: 'Instrument Serif', serif;
+    font-style: italic;
+    font-weight: 400;
+    font-size: clamp(40px, 5vw, 68px);
+    line-height: 1.05;
+    letter-spacing: -0.025em;
+    margin-bottom: 24px;
+  }
+  .process .head p { font-size: 16px; color: var(--ink-light-dim); line-height: 1.75; max-width: 580px; }
+
+  /* film */
+  .process-film {
+    position: relative;
+    aspect-ratio: 16 / 9;    background: #000;
+    margin-bottom: 120px;
+    overflow: hidden;
+    border: 0.5px solid rgba(255,255,255,0.06);
+  }
+  .process-film iframe {
+    position: absolute; inset: 0; width: 100%; height: 100%; border: 0;
+  }
+  .process-film .film-cap {
+    position: absolute; left: 24px; bottom: 20px; z-index: 2;
+    font-size: 11px; letter-spacing: 0.25em; text-transform: uppercase;
+    color: rgba(255,255,255,0.7);
+    pointer-events: none;
+    text-shadow: 0 1px 8px rgba(0,0,0,0.6);
+  }
+
+  /* steps grid — number + title + body */
+  .process-steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; border-top: 0.5px solid rgba(255,255,255,0.08); }
+  .process-step { padding: 40px 28px 0 0; border-right: 0.5px solid rgba(255,255,255,0.06); }
+  .process-step:last-child { border-right: 0; padding-right: 0; }
+  .process-step .num {
+    font-family: 'Instrument Serif', serif;
+    font-style: italic;
+    font-size: 14px;
+    color: var(--accent);
+    letter-spacing: 0.05em;
+    margin-bottom: 28px;
+  }
+  .process-step h4 {
+    font-family: 'Instrument Serif', serif;
+    font-style: italic;
+    font-weight: 400;
+    font-size: 22px;
+    line-height: 1.25;
+    letter-spacing: -0.015em;
+    margin-bottom: 18px;
+    color: var(--ink-light);
+  }
+  .process-step p { font-size: 14px; line-height: 1.75; color: var(--ink-light-dim); }
+  @media (max-width: 900px) {
+    .process-steps { grid-template-columns: 1fr 1fr; }
+    .process-step { border-bottom: 0.5px solid rgba(255,255,255,0.06); padding: 32px 20px 32px 0; }
+    .process-step:nth-child(2n) { border-right: 0; }
+  }
+  @media (max-width: 560px) {
+    .process-steps { grid-template-columns: 1fr; }
+    .process-step { border-right: 0; }
+  }
+
+  /* prototype lineup + scenarios */
+  .process-artifact {
+    margin: 120px 0;
+  }
+  .process-artifact .label-row {
+    display: flex; justify-content: space-between; align-items: baseline;
+    border-bottom: 0.5px solid rgba(255,255,255,0.08);
+    padding-bottom: 18px; margin-bottom: 32px;
+  }
+  .process-artifact .label-row .l {
+    font-family: 'Instrument Serif', serif; font-style: italic; font-size: 22px;
+    color: var(--ink-light);
+  }
+  .process-artifact .label-row .r {
+    font-size: 11px; letter-spacing: 0.25em; text-transform: uppercase;
+    color: var(--ink-light-faint);
+  }
+  .process-artifact img { width: 100%; height: auto; display: block; }
+  .process-artifact .cap {
+    margin-top: 18px; font-size: 13px; color: var(--ink-light-dim); line-height: 1.7;
+  }
+
+  /* Award + News + Credits — final, dark */
+  .award {
+    background: var(--bg-1);
+    padding: 200px 40px 140px;
+    border-top: 0.5px solid rgba(255,255,255,0.06);
+  }
+  .award .container { max-width: 1280px; margin: 0 auto; }
+  .award .top {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 80px;
+    align-items: center;
+    margin-bottom: 140px;
+  }
+  .award .visual {
+    aspect-ratio: 3/2;
+    overflow: hidden;
+    background: #000;
+  }
+  .award .visual img { width: 100%; height: 100%; object-fit: cover; }
+
+  /* Award photo — hover face tags linking to Instagram */
+  .award-photo { position: relative; cursor: default; }
+  .award-photo .face-tag {
+    position: absolute;
+    top: 0; bottom: 0;
+    width: 50%;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding-bottom: 28px;
+    text-decoration: none;
+    color: #fff;
+    background: linear-gradient(to top, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0) 60%);
+    opacity: 0;
+    transition: opacity 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+    z-index: 2;
+  }
+  .award-photo .face-tag-left { left: 0; }
+  .award-photo .face-tag-right { right: 0; }
+  .award-photo:hover .face-tag { opacity: 1; }
+  .award-photo .face-tag-inner {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    transform: translateY(8px);
+    transition: transform 0.55s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .award-photo:hover .face-tag-inner { transform: translateY(0); }
+  .award-photo .face-tag-name {
+    font-family: 'Instrument Serif', serif;
+    font-style: italic;
+    font-size: 22px;
+    letter-spacing: -0.01em;
+  }
+  .award-photo .face-tag-cta {
+    font-size: 10px;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.85);
+  }
+  .award-photo .face-tag:hover .face-tag-cta {
+    color: #fff;
+  }
+  /* Subtle hint that tags exist — faint outline on hover */
+  .award-photo::after {
+    content: '';
+    position: absolute; inset: 0;
+    border: 1px solid rgba(255,255,255,0);
+    pointer-events: none;
+    transition: border-color 0.4s ease;
+  }
+  .award-photo:hover::after { border-color: rgba(255,255,255,0.08); }
+  .award .eyebrow {
+    font-size: 11px; letter-spacing: 0.3em; text-transform: uppercase;
+    color: var(--accent); margin-bottom: 24px;
+  }
+  .award h2 {
+    font-family: 'Instrument Serif', serif;
+    font-style: italic;
+    font-weight: 400;
+    font-size: clamp(36px, 4.5vw, 64px);
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    margin-bottom: 28px;
+    color: var(--ink-light);
+  }
+  .award p {
+    font-size: 15px;
+    line-height: 1.75;
+    color: var(--ink-light-dim);
+    margin-bottom: 18px;
+  }
+
+  .award .news {
+    border-top: 1px solid rgba(255,255,255,0.1);
+    padding-top: 80px;
+    margin-bottom: 100px;
+  }
+  .award .news .label {
+    font-size: 11px; letter-spacing: 0.3em; text-transform: uppercase;
+    color: var(--ink-light-faint); margin-bottom: 40px;
+  }
+  .news-list { display: grid; gap: 0; }
+  .news-list a {
+    display: grid;
+    grid-template-columns: 90px 1fr auto auto;
+    gap: 32px;
+    padding: 28px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    font-size: 15px;
+    color: var(--ink-light);
+    align-items: center;
+    transition: color 0.4s, padding 0.4s;
+  }
+  .news-list a:hover { color: var(--accent); padding-left: 12px; }
+  .news-list .date { font-size: 12px; color: var(--ink-light-faint); letter-spacing: 0.05em; }
+  .news-list .source { font-size: 12px; color: var(--ink-light-faint); }
+  .news-list .arrow { font-size: 16px; color: var(--ink-light-faint); transition: transform 0.4s; }
+  .news-list a:hover .arrow { transform: translateX(6px); color: var(--accent); }
+  .news-list .title { font-weight: 400; line-height: 1.4; padding-right: 20px; }
+
+  /* Awards lineup — minimalist typographic treatment */
+  .awards-lineup { margin-top: 120px; padding-top: 80px; border-top: 0.5px solid rgba(255,255,255,0.08); }
+  .awards-lineup .label {
+    font-size: 11px; letter-spacing: 0.3em; text-transform: uppercase;
+    color: var(--ink-light-faint); margin-bottom: 60px;
+  }
+  .awards-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 0;
+    border-top: 0.5px solid rgba(255,255,255,0.08);
+    border-bottom: 0.5px solid rgba(255,255,255,0.08);
+  }
+  .award-card {
+    padding: 40px 28px;
+    border-right: 0.5px solid rgba(255,255,255,0.06);
+    display: flex; flex-direction: column; justify-content: space-between;
+    min-height: 220px;
+  }
+  .award-card:last-child { border-right: 0; }
+  .award-card .tier-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 9px; letter-spacing: 0.2em; text-transform: uppercase;
+    font-weight: 500;
+    align-self: flex-start;
+    margin-bottom: 36px;
+  }
+  .award-card .tier-badge.grand { background: var(--accent); color: #1a1a1a; }
+  .award-card .tier-badge.gold { background: rgba(244, 217, 46, 0.18); color: #f4d92e; border: 0.5px solid rgba(244, 217, 46, 0.4); }
+  .award-card .tier-badge.silver { background: rgba(200, 200, 200, 0.12); color: #d8d8d8; border: 0.5px solid rgba(200, 200, 200, 0.3); }
+  .award-card .tier-badge.winner { background: rgba(216, 56, 56, 0.15); color: #ff7878; border: 0.5px solid rgba(216, 56, 56, 0.4); }
+  .award-card .award-name {
+    font-family: 'Instrument Serif', serif;
+    font-style: italic;
+    font-weight: 400;
+    font-size: 26px;
+    line-height: 1.15;
+    letter-spacing: -0.015em;
+    color: var(--ink-light);
+    margin-bottom: 12px;
+  }
+  .award-card .award-org {
+    font-size: 12px; color: var(--ink-light-dim);
+    line-height: 1.5;
+  }
+  .award-card .award-org .yr {
+    display: block; margin-top: 8px;
+    font-size: 10px; letter-spacing: 0.15em; color: var(--ink-light-faint);
+  }
+  @media (max-width: 1100px) {
+    .awards-grid { grid-template-columns: repeat(3, 1fr); }
+    .award-card:nth-child(3n) { border-right: 0; }
+    .award-card { border-bottom: 0.5px solid rgba(255,255,255,0.06); }
+    .award-card:nth-last-child(-n+2) { border-bottom: 0; }
+  }
+  @media (max-width: 640px) {
+    .awards-grid { grid-template-columns: 1fr 1fr; }
+    .award-card { border-right: 0.5px solid rgba(255,255,255,0.06) !important; min-height: 180px; padding: 32px 20px; }
+    .award-card:nth-child(2n) { border-right: 0 !important; }
+  }
+
+  .credits {
+    border-top: 1px solid rgba(255,255,255,0.1);
+    padding-top: 60px;
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: 60px;
+    align-items: start;
+  }
+  .credits .role {
+    font-size: 11px;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--ink-light-faint);
+  }
+  .credits .designers {
+    font-family: 'Instrument Serif', serif;
+    font-style: italic;
+    font-size: clamp(28px, 3vw, 40px);
+    line-height: 1.3;
+    color: var(--ink-light);
+    margin-bottom: 24px;
+  }
+  .credits .designers .amp { color: var(--ink-light-faint); margin: 0 12px; }
+  .credits .award-line {
+    font-size: 14px;
+    color: var(--ink-light-dim);
+    line-height: 1.7;
+  }
+  .credits .award-line strong { color: var(--ink-light); font-weight: 400; }
+
+  /* CTA */
+  .cta-section {
+    padding: 200px 40px;
+    text-align: center;
+    background: radial-gradient(ellipse at center, #1a1714 0%, #0a0a0c 80%);
+  }
+  .cta-section h2 {
+    font-family: 'Instrument Serif', serif;
+    font-style: italic;
+    font-weight: 400;
+    font-size: clamp(56px, 9vw, 160px);
+    line-height: 0.95;
+    letter-spacing: -0.035em;
+    margin-bottom: 40px;
+  }
+  .cta-section p {
+    font-size: 16px;
+    color: var(--ink-light-dim);
+    max-width: 48ch;
+    margin: 0 auto 48px;
+    line-height: 1.75;
+  }
+  .cta-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 16px 36px;
+    line-height: 1;
+    border: 1px solid rgba(255,255,255,0.25);
+    border-radius: 999px;
+    color: var(--ink-light);
+    font-size: 14px;
+    transition: background 0.5s, color 0.5s, border-color 0.5s, transform 0.5s;
+  }
+  .cta-button:hover {
+    background: var(--ink-light);
+    color: var(--ink-dark);
+    border-color: var(--ink-light);
+    transform: translateY(-2px);
+  }
+  .cta-button.cta-primary {
+    background: var(--ink-light);
+    color: var(--ink-dark);
+    border-color: var(--ink-light);
+  }
+  .cta-button.cta-primary:hover {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--ink-dark);
+  }
+
+  footer {
+    background: var(--bg-0);
+    border-top: 0.5px solid rgba(255,255,255,0.06);
+    padding: 50px 40px;
+    font-size: 12px;
+    color: var(--ink-light-faint);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 20px;
+  }
+  footer .brand {
+    font-family: 'Instrument Serif', serif;
+    font-style: italic;
+    font-size: 18px;
+    color: var(--ink-light-dim);
+  }
+
+  @media (max-width: 900px) {
+    .nav { padding: 14px 20px; }
+    .nav ul { display: none; }
+    .pin-feat-stage { grid-template-columns: 1fr; padding: 0 6vw; gap: 40px; }
+    .pin-feat-media { aspect-ratio: 4/3; max-height: 50vh; }
+    .pin-feat-text { height: auto; }
+    .specs { grid-template-columns: repeat(2, 1fr); }
+    .tech .header { grid-template-columns: 1fr; gap: 30px; }
+    .detail-grid .item { grid-column: span 12 !important; }
+    .detail-grid .d1, .detail-grid .d2 { aspect-ratio: 4/3; }
+    .scenes { grid-template-columns: repeat(2, 1fr); }
+    .scenes .scene { grid-column: span 2 !important; aspect-ratio: 4/3 !important; }
+    .cap-grid { grid-template-columns: 1fr; gap: 32px; }
+    .award .top { grid-template-columns: 1fr; gap: 40px; }
+    .credits { grid-template-columns: 1fr; gap: 24px; }
+    .news-list a { grid-template-columns: 1fr auto; gap: 8px; padding: 22px 0; }
+    .news-list .date, .news-list .source { grid-column: 1 / -1; }
+  }
+  /* Korean subtitle paragraphs — Pretendard Variable ExtraLight, sits under each English line */
+  .kr {
+    font-family: 'Pretendard Variable', 'Pretendard', -apple-system, sans-serif;
+    font-weight: 200;
+    line-height: 1.8;
+    letter-spacing: 0;
+    color: inherit;
+    opacity: 0.62;
+    margin: 6px 0 14px;
+    word-break: keep-all;
+    text-wrap: pretty;
+    /* Match the parent English <p>'s sizing & wrapping by inheriting */
+    font-size: inherit;
+    max-width: inherit;
+    text-align: inherit;
+  }
+  /* Each section's English <p> already sets font-size + max-width + alignment;
+     by using inherit above, the Korean line tracks the English line exactly. */
+</style>
+</head>
+<body>
+
+<template id="__bundler_thumbnail">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
+    <rect width="400" height="400" fill="#0a0a0c"/>
+    <g transform="translate(200 200)" stroke="#c9c0a9" stroke-width="2" fill="none" stroke-linecap="round">
+      <path d="M -70 -30 q 0 -50 70 -50 q 70 0 70 50 q 0 35 -35 50 q -10 5 -10 18 l 0 30 q 0 30 -30 30 l -10 0 q -25 0 -25 -25 l 0 -50 q 0 -10 -10 -18 q -20 -10 -20 -35 z"/>
+      <circle cx="0" cy="0" r="6" fill="#c9c0a9"/>
+    </g>
+    <text x="200" y="340" text-anchor="middle" fill="#c9c0a9" font-family="Georgia, serif" font-style="italic" font-size="32" letter-spacing="2">sleev</text>
+  </svg>
+</template>
+
+<nav class="nav is-light" id="nav">
+  <div class="brand">sleev</div>
+  <ul>
+    <li><a href="#manifesto">Story</a></li>
+    <li><a href="#feat">Features</a></li>
+    <li><a href="#daily">Daily</a></li>
+    <li><a href="#process">Process</a></li>
+    <li><a href="#award">Award</a></li>
+  </ul>
+  <a href="/sleev/Sleev-standalone.html" target="_blank" class="cta">Try Sleev &nbsp;↗</a>
+</nav>
+
+<!-- Background music -->
+<audio id="bg-audio" src="/sleev/assets/marble-thunder.mp3" loop preload="auto"></audio>
+<button id="audio-toggle" class="is-muted" aria-label="Toggle background music" type="button">
+  <span class="bars" aria-hidden="true">
+    <span></span><span></span><span></span><span></span>
+  </span>
+  <span class="muted-x" aria-hidden="true"></span>
+</button>
+<style>
+  #audio-toggle {
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    z-index: 50;
+    width: 44px;
+    height: 44px;
+    border-radius: 999px;
+    border: 0.5px solid rgba(255,255,255,0.18);
+    background: rgba(20,20,20,0.55);
+    backdrop-filter: blur(14px) saturate(160%);
+    -webkit-backdrop-filter: blur(14px) saturate(160%);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    transition: background 0.4s, border-color 0.4s, transform 0.3s;
+    color: #fff;
+  }
+  #audio-toggle:hover { background: rgba(40,40,40,0.7); border-color: rgba(255,255,255,0.35); transform: translateY(-2px); }
+  #audio-toggle .bars {
+    display: inline-flex; align-items: flex-end; gap: 2.5px; height: 16px;
+  }
+  #audio-toggle .bars span {
+    width: 2.5px; background: #fff; border-radius: 2px;
+    transition: height 0.3s ease;
+  }
+  #audio-toggle:not(.is-muted) .bars span:nth-child(1) { animation: bar1 1.1s ease-in-out infinite; }
+  #audio-toggle:not(.is-muted) .bars span:nth-child(2) { animation: bar2 0.9s ease-in-out infinite; }
+  #audio-toggle:not(.is-muted) .bars span:nth-child(3) { animation: bar3 1.2s ease-in-out infinite; }
+  #audio-toggle:not(.is-muted) .bars span:nth-child(4) { animation: bar4 1.0s ease-in-out infinite; }
+  @keyframes bar1 { 0%,100% { height: 5px; } 50% { height: 11px; } }
+  @keyframes bar2 { 0%,100% { height: 12px; } 50% { height: 5px; } }
+  @keyframes bar3 { 0%,100% { height: 14px; } 50% { height: 7px; } }
+  @keyframes bar4 { 0%,100% { height: 7px; } 50% { height: 13px; } }
+  #audio-toggle.is-muted .bars span { height: 4px; opacity: 0.45; }
+  #audio-toggle .muted-x {
+    display: none;
+    position: absolute;
+    width: 22px; height: 1px;
+    background: #fff; opacity: 0.7;
+    transform: rotate(-30deg);
+  }
+  #audio-toggle.is-muted .muted-x { display: block; }
+</style>
+
+<!-- HERO — clean cream, big product photo, type below (Behance opener) -->
+<section class="hero">
+  <div class="hero-image"><img src="/sleev/assets/hero-main.jpg" alt="Sleev — worn on arm"></div>
+  <div class="hero-headline"><h1>Sleev</h1></div>
+  <div class="hero-scroll">Scroll<span class="line"></span></div>
+</section>
+
+<!-- MANIFESTO -->
+<section class="manifesto" id="manifesto">
+  <div class="container">
+    <div class="eyebrow">The Brief</div>
+    <h2>A wearable that disappears<br>into daily life.</h2>
+    <p>Most upper-limb exosuits were built for industry and medicine — bulky, intrusive, hard to wear alone. Sleev is designed for the rhythm of independent living: worn through a hug, a phone call, a quiet morning.</p>
+    <p class="kr">기존의 상지 보조 로보틱스는 산업과 의료 현장을 위해 만들어져서 부피가 크고, 거추장스럽고, 혼자 착용하기 어려웠습니다.<br>Sleev는 자립적인 일상을 위해 디자인되었습니다. 누군가를 안을 때, 전화를 받을 때, 조용한 아침에도 함께합니다.</p>
+    <p>Sensors read intent through muscle expansion. The form sits close to the body. The strap fastens with one hand. The whole machine is shaped to be present without being seen.</p>
+    <p class="kr">FMG센서는 근육의 팽창을 통해 움직임의 의도를 읽고, 형태는 신체에 자연스럽게 밀착됩니다.</p>
+  </div>
+</section>
+
+<!-- PINNED FEATURES — vertical translate transitions, no spin -->
+<section class="pin-feat" id="feat">
+  <div class="pin-feat-stage">
+    <div class="pin-feat-media">
+      <div class="layer" data-layer="0"><img src="/sleev/assets/detail-actuator.jpg" alt=""></div>
+      <div class="layer" data-layer="1"><img src="/sleev/assets/form-detail.jpg" alt=""></div>
+      <div class="layer" data-layer="2"><video src="/sleev/assets/anim4.mp4" autoplay muted loop playsinline></video></div>
+    </div>
+    <div class="pin-feat-text">
+      <div class="panel" data-panel="0">
+        <div class="num"><span></span>01 &nbsp; Sensing</div>
+        <h3 data-split>Reads muscle expansion,<br>not skin signals.</h3>
+        <p>FMG (Force Myography) interprets movement through pressure as muscles expand — paired with IMU joint tracking for a stable read on intent.</p>
+        <p>No fragile sEMG calibration. No medical setup. The wearer simply moves, and Sleev moves with them.</p>
+        <div class="meta">
+          <div>Sensors<strong>IMU + FMG</strong></div>
+          <div>Sizes<strong>S / M / L</strong></div>
+        </div>
+      </div>
+      <div class="panel" data-panel="1">
+        <div class="num"><span></span>02 &nbsp; Form</div>
+        <h3 data-split>Shaped to vanish<br>against the body.</h3>
+        <p>Inner arms minimise interference when holding a child or carrying a bag. The elbow stays clear when the arm bends and moves backward.</p>
+        <p>Quietly aesthetic, structurally invisible — a wearable that layers cleanly over an everyday outfit.</p>
+        <div class="meta">
+          <div>Range<strong>−5° → 140°</strong></div>
+          <div>Layer<strong>Over innerwear</strong></div>
+        </div>
+      </div>
+      <div class="panel" data-panel="2">
+        <div class="num"><span></span>03 &nbsp; Daily</div>
+        <h3 data-split>Built around the<br>rhythm of one hand.</h3>
+        <p>A charging cradle holds Sleev steady so it can be put on with a single hand — no help required. Voice commands trigger frequent routines.</p>
+        <p>A rehabilitation mode reverses the actuator force to provide resistance, returning users toward their original daily lives.</p>
+        <div class="meta">
+          <div>Wear<strong>One-hand</strong></div>
+          <div>Modes<strong>Assist / Rehab</strong></div>
+        </div>
+      </div>
+    </div>
+    <div class="pin-feat-progress">
+      <span class="is-active"></span><span></span><span></span>
+    </div>
+  </div>
+</section>
+
+<!-- PARALLAX 1 -->
+<section class="parallax-bleed">
+  <video src="/sleev/assets/anim2.mp4" autoplay muted loop playsinline></video>
+  <div class="vignette"></div>
+  <div class="caption">
+    <div class="eyebrow">Move &amp; stop with muscular intent</div>
+    <h2>Strength that listens<br>before it acts.</h2>
+  </div>
+</section>
+
+<!-- TECH / SPECS / DETAILS -->
+<section class="tech">
+  <div class="container">
+    <div class="header">
+      <div>
+        <div class="eyebrow">The Architecture</div>
+        <h2>Quiet machinery,<br>sized for the body.</h2>
+      </div>
+      <div class="lead">
+        <p>Designed against the 2021 Size Korea ergonomic dataset, Sleev fits the 5th to 95th percentile of users in three sizes — a detachable sensor module, a soft fabric inner, a rigid outer shell that flexes only where it should.</p>
+        <p class="kr">사이즈코리아 인체측정 데이터를 기준으로, Sleev는 세 가지 사이즈로 제안되어 5~95% 분포의 사용자를 수용합니다. 분리형 센서 모듈, 부드러운 패브릭 이너, 그리고 필요한 곳에서만 유연하게 움직이는 견고한 외관으로 구성됩니다.</p>
+      </div>
+    </div>
+
+    <div class="specs">
+      <div class="spec"><div class="label">Inwards Max</div><div class="value">130°–140°</div><div class="unit">elbow flexion</div></div>
+      <div class="spec"><div class="label">Natural State</div><div class="value">10°–15°</div><div class="unit">resting angle</div></div>
+      <div class="spec"><div class="label">Outwards Max</div><div class="value">−5°–0°</div><div class="unit">extension</div></div>
+      <div class="spec"><div class="label">Dimensions</div><div class="value">150 × 95 × 220</div><div class="unit">millimeters</div></div>
+    </div>
+
+    <div class="detail-grid">
+      <div class="item d1"><img src="/sleev/assets/detail-cushion.jpg" alt=""><div class="label">Soft inner cushion</div></div>
+      <div class="item d2"><img src="/sleev/assets/detail-actuator.jpg" alt=""><div class="label">Actuator housing</div></div>
+      <div class="item d3"><img src="/sleev/assets/detail-strap.jpg" alt=""><div class="label">Adjustable strap</div></div>
+      <div class="item d4"><img src="/sleev/assets/detail-buckle.jpg" alt=""><div class="label">Magnetic buckle</div></div>
+      <div class="item d5"><img src="/sleev/assets/detail-logo.jpg" alt=""><div class="label">Charging contacts</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- DAILY SCENES -->
+<section class="daily" id="daily">
+  <div class="container">
+    <div class="daily-intro">
+      <h2>Made for <em>holding things</em>, not getting in the way.</h2>
+      <p>Sleev is shaped to move through ordinary hours — walking, sitting at a table, putting on a coat — without announcing itself.</p>
+      <p class="kr">Sleev는 평범한 시간들 — 걷고, 식탁에 앉고, 코트를 입는 순간들을 수용할 수 있도록 디자인되었습니다.</p>
+    </div>
+    <div class="scenes">
+      <div class="scene s1"><img src="/sleev/assets/wear-side.jpg" alt=""><div class="caption"><div class="num">SCENE 01</div><div class="title">Walking, mid-day.</div></div></div>
+      <div class="scene s2"><img src="/sleev/assets/wear-back.jpg" alt=""><div class="caption"><div class="num">SCENE 02</div><div class="title">From behind, almost unseen.</div></div></div>
+      <div class="scene s3"><img src="/sleev/assets/wear-table.jpg" alt=""><div class="caption"><div class="num">SCENE 03</div><div class="title">One-hand wearing.</div></div></div>
+      <div class="scene s4"><img src="/sleev/assets/wear-vacuum.jpg" alt=""><div class="caption"><div class="num">SCENE 04</div><div class="title">Household tasks.</div></div></div>
+      <div class="scene s5"><img src="/sleev/assets/wear-front.jpg" alt=""><div class="caption"><div class="num">SCENE 05</div><div class="title">Layered over a tee.</div></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- PARALLAX 2 -->
+<section class="parallax-bleed">
+  <img src="/sleev/assets/holding1.jpg" alt="">
+  <div class="vignette"></div>
+  <div class="caption">
+    <div class="eyebrow">Form follows feeling</div>
+    <h2>Soft where it touches.<br>Strong where it matters.</h2>
+  </div>
+</section>
+
+<!-- CAPABILITIES -->
+<section class="capabilities">
+  <div class="container">
+    <div class="head">
+      <h2>Three quiet capabilities.</h2>
+      <p>Sleev is built around the small frictions of one-handed life — and the moments where a little assistance changes the day.</p>
+      <p class="kr" style="white-space: nowrap;">Sleev는 작은 도움이 하루를 바꾸는, 더 나은 일상의 순간들을 위해 만들어졌습니다.</p>
+    </div>
+    <div class="cap-grid">
+      <div class="cap">
+        <svg class="icon" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.2">
+          <path d="M14 30c0-6 4-10 10-10s10 4 10 10"/><circle cx="24" cy="14" r="4"/><path d="M10 38h28"/>
+        </svg>
+        <h3>Easy wear, one hand.</h3>
+        <p>Sleev rests on its charging cradle while you slip your arm in and secure the strap — no second hand needed, no help required.</p>
+        <p class="kr">Sleev는 충전 크래들 위에 놓인 채로 팔을 끼우고 스트랩을 채울 수 있습니다. 다른 손도, 누군가의 도움도 필요하지 않습니다.</p>
+      </div>
+      <div class="cap">
+        <svg class="icon" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.2">
+          <path d="M16 18v12a8 8 0 0 0 16 0V18a8 8 0 0 0-16 0z"/><path d="M10 26h2M36 26h2M24 38v6"/>
+        </svg>
+        <h3>Voice action commands.</h3>
+        <p>Frequent routines can be recorded and triggered by voice, reducing the need to manually re-instruct the robot through every familiar task.</p>
+        <p class="kr">반복되는 일상 동작은 음성으로 실행할 수 있어, 익숙한 동작마다 매번 다시 조작할 필요가 줄어듭니다.</p>
+      </div>
+      <div class="cap">
+        <svg class="icon" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.2">
+          <path d="M8 24h6l4-10 8 20 4-10h10"/>
+        </svg>
+        <h3>Rehabilitation mode.</h3>
+        <p>By reversing the direction of actuator force, Sleev becomes a resistance training partner — guiding users back toward their original daily lives.</p>
+        <p class="kr">액추에이터의 힘을 반대 방향으로 작동시키면 Sleev는 재활 트레이닝 파트너가 됩니다. 사용자가 본래의 일상으로 돌아갈 수 있도록 도움을 줍니다.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PROCESS — making of -->
+<section class="process" id="process">
+  <div class="container">
+    <div class="head">
+      <div class="eyebrow">The Making</div>
+      <h2>From sketch to<br>silent machine.</h2>
+      <p>Sleev passed through dozens of strap configurations, foam mock-ups, and sensor housings before settling into its final form. The film below traces the work from first volume study to the body it wears today.</p>
+    </div>
+
+    <div class="process-film">
+      <iframe data-vimeo data-vimeo-id="1142405725" src="https://player.vimeo.com/video/1142405725?background=1&muted=1&loop=1&autopause=0&title=0&byline=0&portrait=0&controls=0&dnt=1" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>
+      <div class="film-cap">Process Film · 2024–2025</div>
+    </div>
+
+    <div class="process-steps">
+      <div class="process-step">
+        <div class="num">01</div>
+        <h4>Volume study.</h4>
+        <p>Foam blocks and tape mock-ups tested how much mass the upper arm could carry without becoming visually heavy.</p>
+      </div>
+      <div class="process-step">
+        <div class="num">02</div>
+        <h4>Strap geometry.</h4>
+        <p>Six strap configurations were trialled to find one that secures with a single hand and stays clear of the elbow.</p>
+      </div>
+      <div class="process-step">
+        <div class="num">03</div>
+        <h4>Sensor housing.</h4>
+        <p>FMG modules went through six iterations — from raw boards to the final flush-mounted, fabric-backed cell.</p>
+      </div>
+      <div class="process-step">
+        <div class="num">04</div>
+        <h4>Daily-life test.</h4>
+        <p>Wearers carried bags, lifted children, used a vacuum and a hairdryer — every scenario fed back into the form.</p>
+      </div>
+    </div>
+
+    <div class="process-artifact">
+      <div class="label-row">
+        <div class="l">Prototype lineup</div>
+        <div class="r">2024 — 2025 · Eight iterations</div>
+      </div>
+      <img src="/sleev/assets/process-prototypes.jpg" alt="Sleev prototype lineup — eight iterations">
+      <div class="cap">Left to right: structural frame studies, soft-shell mock-ups, sensor module revisions, and the final detachable FMG cell. Below, the woven inner strap and three fabric inner samples.</div>
+    </div>
+
+    <div class="process-artifact">
+      <div class="label-row">
+        <div class="l">Studio documentation</div>
+        <div class="r">Mock-up photography · Behind the scenes</div>
+      </div>
+      <img src="/sleev/assets/process-studio.png" alt="Sleev mock-up photography — studio behind-the-scenes">
+      <div class="cap">Each prototype was photographed under controlled studio lighting — shot, re-shot, and re-staged across multiple sessions to document the physical evolution of the form before final production.</div>
+    </div>
+
+    <div class="process-artifact">
+      <div class="label-row">
+        <div class="l">Scenario testing</div>
+        <div class="r">AI-generated imagery · Concept validation</div>
+      </div>
+      <img src="/sleev/assets/process-scenarios.png" alt="Sleev scenario testing — AI-generated imagery and video for daily use cases" style="display:none">
+      <div class="process-film process-film--scenario">
+        <iframe data-vimeo data-vimeo-id="1142481016" src="https://player.vimeo.com/video/1142481016?background=1&muted=1&loop=1&autopause=0&title=0&byline=0&portrait=0&controls=0&dnt=1" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>
+      </div>
+      <div class="cap">Eight everyday scenarios were rendered as AI-generated images and short video clips — holding a hairdryer, lifting a vacuum, carrying a child, putting on a coat, working at a table — and used to stress-test the form, strap geometry, and elbow clearance before physical wear trials.</div>
+    </div>
+  </div>
+</section>
+
+<!-- AWARD + NEWS + CREDITS — final block -->
+<section class="award" id="award">
+  <div class="container">
+    <div class="top">
+      <div>
+        <div class="eyebrow">The 60th Korea International Design Award · 2025</div>
+        <h2>Awarded the<br>Presidential Grand Prize.</h2>
+        <p>Sleev was awarded the highest honour at the 60th Korea International Design Award (2025) — selected from 6,611 entries across the Korean design industry. The work was recognised for proposing a quiet, daily-life rethinking of the upper-limb exosuit, where there had previously only been industrial and medical machines.</p>
+        <p class="kr">Sleev는 제60회 대한민국디자인전람회(2025)에서 6,611개 출품작 중 대상(대통령상)으로 선정되었습니다. 산업·의료 분야에 머물러 있던 상지 로보틱스를 일상의 관점에서 재해석한 부분이 좋은 평가를 받았습니다.</p>
+        <p>The award ceremony was held on November 14, 2025 at COEX Hall D as part of Design Korea 2025.</p>
+        <p class="kr">시상식은 2025년 11월 14일 COEX에서 진행되었습니다.</p>
+      </div>
+      <div class="visual award-photo">
+        <img src="/sleev/assets/award.jpg" alt="Presidential award ceremony">
+        <a class="face-tag face-tag-left" href="https://www.instagram.com/sungchan.design/" target="_blank" rel="noopener">
+          <span class="face-tag-inner">
+            <span class="face-tag-name">Ko Sung-chan</span>
+            <span class="face-tag-cta">Instagram ↗</span>
+          </span>
+        </a>
+        <a class="face-tag face-tag-right" href="https://www.instagram.com/youngha_rho/" target="_blank" rel="noopener">
+          <span class="face-tag-inner">
+            <span class="face-tag-name">Roh Young-ha</span>
+            <span class="face-tag-cta">Instagram ↗</span>
+          </span>
+        </a>
+      </div>
+    </div>
+
+    <div class="news">
+      <div class="label">In the press</div>
+      <div class="news-list">
+        <a href="https://www.sanupin-news.kr/news/articleView.html?idxno=12777" target="_blank" rel="noopener">
+          <span class="date">2025.11.17</span>
+          <span class="title">대한민국디자인전람회 60주년, 역대 최다 접수 기록 경신 — 대통령상 '슬리브'</span>
+          <span class="source">산업인뉴스</span>
+          <span class="arrow">→</span>
+        </a>
+        <a href="https://award.kidp.or.kr/KoreaDesign/result_list.do" target="_blank" rel="noopener">
+          <span class="date">2025</span>
+          <span class="title">제60회 대한민국디자인전람회 결과발표 — 대상(대통령상) 슬리브</span>
+          <span class="source">한국디자인진흥원</span>
+          <span class="arrow">→</span>
+        </a>
+        <a href="https://www.donga.com/news/Economy/article/all/20251114/132771221/1" target="_blank" rel="noopener">
+          <span class="date">2025.11.14</span>
+          <span class="title">제60회 대한민국디자인전람회 시상식 — 대통령상 '슬리브'</span>
+          <span class="source">동아일보</span>
+          <span class="arrow">→</span>
+        </a>
+        <a href="https://www.mk.co.kr/news/business/11469124" target="_blank" rel="noopener">
+          <span class="date">2025</span>
+          <span class="title">팔 움직임 돕는 상지 보조 로봇 '슬리브', 디자인전람회 대통령상</span>
+          <span class="source">매일경제</span>
+          <span class="arrow">→</span>
+        </a>
+        <a href="https://view.asiae.co.kr/article/2025111419223099268" target="_blank" rel="noopener">
+          <span class="date">2025</span>
+          <span class="title">'슬리브' 대통령상 — 일상 속 자립을 돕는 상지 보조 로봇</span>
+          <span class="source">아시아경제</span>
+          <span class="arrow">→</span>
+        </a>
+        <a href="https://www.designdb.com/?menuno=1451&bbsno=385&siteno=15&act=view&ztag=rO0ABXQAOjxjYWxsIHR5cGU9ImJvYXJkIiBubz0iMTAwMiIgc2tpbj0icGhvdG9fYmJzXzIwMTkiPjwvY2FsbD4%3D" target="_blank" rel="noopener">
+          <span class="date">2025</span>
+          <span class="title">제60회 대한민국디자인전람회 도록 — 수상작 갤러리</span>
+          <span class="source">디자인DB</span>
+          <span class="arrow">→</span>
+        </a>
+        <a href="https://www.behance.net/gallery/239009133/Sleev" target="_blank" rel="noopener">
+          <span class="date">2025</span>
+          <span class="title">Sleev — Project documentation on Behance</span>
+          <span class="source">Behance</span>
+          <span class="arrow">→</span>
+        </a>
+      </div>
+    </div>
+
+    <div class="awards-lineup">
+      <div class="label">Recognition</div>
+      <div class="awards-grid">
+        <div class="award-card">
+          <span class="tier-badge grand">Grand Prize</span>
+          <div>
+            <div class="award-name">Korea International<br>Design Award</div>
+            <div class="award-org">Presidential Prize · KIDP<span class="yr">2025 · 60TH EDITION</span></div>
+          </div>
+        </div>
+        <div class="award-card">
+          <span class="tier-badge winner">Winner</span>
+          <div>
+            <div class="award-name">Red Dot<br>Award</div>
+            <div class="award-org">Design Concept<span class="yr">2025</span></div>
+          </div>
+        </div>
+        <div class="award-card">
+          <span class="tier-badge gold">Gold</span>
+          <div>
+            <div class="award-name">K-Design<br>Award</div>
+            <div class="award-org">Gold Winner<span class="yr">2025</span></div>
+          </div>
+        </div>
+        <div class="award-card">
+          <span class="tier-badge gold">Gold</span>
+          <div>
+            <div class="award-name">Daejeon<br>Design Awards</div>
+            <div class="award-org">The 34th DDA · Gold<span class="yr">2025</span></div>
+          </div>
+        </div>
+        <div class="award-card">
+          <span class="tier-badge silver">Silver</span>
+          <div>
+            <div class="award-name">ibda<br>Design Award</div>
+            <div class="award-org">Silver<span class="yr">2025</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="credits">
+      <div class="role">Designed by</div>
+      <div>
+        <div class="designers">Ko Sung-chan <span class="amp">&amp;</span> Roh Young-ha</div>
+        <div class="award-line"><strong>대통령상 · Presidential Grand Prize</strong> · 제60회 대한민국디자인전람회 (The 60th Korea International Design Award), 2025</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PARALLAX 3 -->
+<section class="parallax-bleed">
+  <video src="/sleev/assets/anim7.mp4" autoplay muted loop playsinline></video>
+  <div class="vignette"></div>
+  <div class="caption">
+    <div class="eyebrow">Sleev · for daily purposes</div>
+    <h2>An arm, returned<br>to the everyday.</h2>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta-section" id="cta">
+  <h2>For the<br>independent day.</h2>
+  <p>Sleev is currently in design-stage, with prototypes selected for the Korea International Design Award exhibition. Reach out for press, partnership, or research enquiries.</p>
+  <div style="display:flex; gap:16px; justify-content:center; align-items:center; flex-wrap:wrap;">
+    <a class="cta-button cta-primary" href="/sleev/Sleev-standalone.html" target="_blank">Try Sleev <span aria-hidden="true">→</span></a>
+    <a class="cta-button" href="mailto:hello@sleev.studio">Make an enquiry</a>
+  </div>
+</section>
+
+<footer>
+  <div class="brand">sleev</div>
+  <div>© 2026 Sungchan Ko, Assistant Professor, Department of Design, Seoul National University of Science and Technology, Seoul, Republic of Korea. All rights reserved.</div>
+</footer>
+
+<script>
+  /* Lenis smooth scroll */
+  const lenis = new Lenis({
+    duration: 1.1,
+    easing: (t) => 1 - Math.pow(1 - t, 4),
+    smoothWheel: true,
+    smoothTouch: false,
+  });
+  function raf(time) { lenis.raf(time); requestAnimationFrame(raf); }
+  requestAnimationFrame(raf);
+
+  gsap.registerPlugin(ScrollTrigger);
+  lenis.on('scroll', ScrollTrigger.update);
+  gsap.ticker.add((time) => lenis.raf(time * 1000));
+  gsap.ticker.lagSmoothing(0);
+
+  /* HERO entry */
+  const heroTL = gsap.timeline({ defaults: { ease: 'expo.out', duration: 1.2 } });
+  heroTL
+    .to('.hero-eyebrow', { opacity: 1, duration: 0.8, delay: 0.1 }, 0)
+    .fromTo('.hero-image',
+      { opacity: 0, y: 40, scale: 0.97 },
+      { opacity: 1, y: 0, scale: 1, duration: 1.4 }, 0.2)
+    .to('.hero-headline h1', { filter: 'blur(0px)', opacity: 1, duration: 1.4 }, 0.4)
+    .to('.hero-scroll', { opacity: 1, duration: 1.0 }, 1.0);
+
+  /* hero subtle parallax on scroll */
+  gsap.to('.hero-image', {
+    y: 60, ease: 'none',
+    scrollTrigger: { trigger: '.hero', start: 'top top', end: 'bottom top', scrub: true },
+  });
+  gsap.to('.hero-headline', {
+    y: -50, ease: 'none',
+    scrollTrigger: { trigger: '.hero', start: 'top top', end: 'bottom top', scrub: true },
+  });
+
+  /* Nav theme: light vs dark */
+  const lightSections = ['.hero', '.manifesto', '.pin-feat', '.tech', '.daily'];
+  ScrollTrigger.create({
+    trigger: '.hero',
+    start: 'top top',
+    end: () => {
+      // Until we exit the last light section
+      const last = document.querySelector('.daily');
+      return last ? last.offsetTop + last.offsetHeight - 80 : 'bottom top';
+    },
+    onUpdate: () => {
+      const y = window.scrollY + 80;
+      let inLight = false;
+      lightSections.forEach((sel) => {
+        const el = document.querySelector(sel);
+        if (!el) return;
+        const top = el.offsetTop, bot = top + el.offsetHeight;
+        if (y >= top && y < bot) inLight = true;
+      });
+      document.getElementById('nav').classList.toggle('is-light', inLight);
+    }
+  });
+
+  /* Manifesto fade */
+  gsap.from('.manifesto .eyebrow, .manifesto h2, .manifesto p', {
+    y: 40, opacity: 0, stagger: 0.1, duration: 1.2, ease: 'expo.out',
+    scrollTrigger: { trigger: '.manifesto', start: 'top 80%' }
+  });
+
+  /* PINNED features — Apple-style cinematic transitions.
+     Per-section local progress (0..1 within each of N segments) drives:
+       • media: scale + clip-reveal + opacity, plus a counter-zoom on inner img/video
+       • text:  per-word vertical reveal (clip-mask) staggered across body copy
+       • progress pips: smooth scaleX fill */
+
+  // 1) Split each h3 with [data-split] into per-word reveal spans.
+  // Use textContent + manual <br> detection so any editor-injected
+  // attributes (e.g. data-src-log) on source nodes are stripped clean.
+  document.querySelectorAll('.pin-feat-text [data-split]').forEach((el) => {
+    // Walk children: text nodes contribute words, <br> nodes contribute line breaks.
+    const lines = [['']];
+    function walk(node) {
+      node.childNodes.forEach((n) => {
+        if (n.nodeType === Node.TEXT_NODE) {
+          lines[lines.length - 1][0] += n.textContent;
+        } else if (n.nodeType === Node.ELEMENT_NODE) {
+          if (n.tagName === 'BR') {
+            lines.push(['']);
+          } else {
+            walk(n);
+          }
+        }
+      });
+    }
+    walk(el);
+
+    const html = lines.map(([text]) => {
+      return text.split(/(\s+)/).map((tok) => {
+        if (!tok) return '';
+        if (/^\s+$/.test(tok)) return tok;
+        // Encode HTML-unsafe chars in the word itself
+        const safe = tok
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;');
+        return `<span class="reveal"><span>${safe}</span></span>`;
+      }).join('');
+    }).join('<br>');
+    el.innerHTML = html;
+  });
+
+  const stage = document.querySelector('.pin-feat');
+  const layers = gsap.utils.toArray('.pin-feat-media .layer');
+  const panels = gsap.utils.toArray('.pin-feat-text .panel');
+  const pips = gsap.utils.toArray('.pin-feat-progress span');
+  const N = panels.length; // 3
+
+  // Initial states
+  panels.forEach((p, i) => {
+    gsap.set(p, { opacity: i === 0 ? 1 : 0, y: 0 });
+    // body paragraphs + meta enter together with subtle stagger
+    const body = p.querySelectorAll('p, .meta, .num');
+    gsap.set(body, { opacity: i === 0 ? 1 : 0, y: i === 0 ? 0 : 24 });
+    const words = p.querySelectorAll('.reveal > span');
+    gsap.set(words, { yPercent: i === 0 ? 0 : 110 });
+  });
+  layers.forEach((l, i) => {
+    gsap.set(l, { opacity: i === 0 ? 1 : 0, scale: i === 0 ? 1 : 1.08, filter: i === 0 ? 'blur(0px)' : 'blur(8px)' });
+    const inner = l.querySelector('img, video');
+    if (inner) gsap.set(inner, { scale: 1.0 });
+  });
+
+  function easeOutExpo(t) { return t === 1 ? 1 : 1 - Math.pow(2, -10 * t); }
+  function easeInOutCubic(t) { return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; }
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+
+  ScrollTrigger.create({
+    trigger: '.pin-feat',
+    start: 'top top',
+    end: 'bottom bottom',
+    onUpdate: (self) => {
+      const progress = self.progress; // 0..1 over the whole pinned area
+      // Virtual position 0..N-1 — panel i is centered at v == i.
+      // Adjacent panels overlap smoothly so there's no dead zone.
+      const v = progress * (N - 1);
+
+      panels.forEach((pan, i) => {
+        // distance from this panel's center
+        const d = v - i;
+
+        // Panel-level visibility: full at d=0, fades over |d| in [0.35, 0.85]
+        let vis = 1 - clamp01((Math.abs(d) - 0.35) / 0.5);
+        vis = easeOutExpo(vis);
+
+        // local "reveal phase" (0..1 going forward through this panel)
+        // d in [-0.7..0]  → reveal in
+        // d in [0..0.7]   → hold (fully revealed)
+        // beyond → exit
+        const enterT = clamp01((d + 0.7) / 0.7); // 0..1 as we approach from below
+        const exitT  = clamp01((d - 0.3) / 0.5); // 0..1 as we leave upward
+
+        gsap.set(pan, { opacity: vis });
+
+        // Body paragraphs + meta + num: stagger on enter
+        const body = pan.querySelectorAll('p, .meta, .num');
+        body.forEach((node, k) => {
+          const stagger = k * 0.08;
+          const ein = clamp01((enterT - stagger) / (1 - stagger));
+          const eout = exitT;
+          const op = easeOutExpo(ein) * (1 - easeInOutCubic(eout));
+          const y = (1 - easeOutExpo(ein)) * 24 - easeInOutCubic(eout) * 16;
+          gsap.set(node, { opacity: op, y: y });
+        });
+
+        // Per-word headline reveal — slide up + fade in, staggered
+        const words = pan.querySelectorAll('.reveal > span');
+        const wc = words.length;
+        words.forEach((w, k) => {
+          const wStagger = (k / Math.max(1, wc)) * 0.55;
+          const wp = clamp01((enterT - wStagger) / (1 - wStagger));
+          const ep = easeOutExpo(wp);
+          const eo = easeInOutCubic(exitT);
+          // y travels from +40% (below) to 0 then -30% (out)
+          const yp = (1 - ep) * 40 - eo * 30;
+          // opacity fades in with reveal, fades out on exit
+          const op = ep * (1 - eo);
+          gsap.set(w, { yPercent: yp, opacity: op });
+        });
+      });
+
+      // Media layers — same scheme but a touch slower so cross-fade reads cleanly
+      layers.forEach((lay, i) => {
+        const d = v - i;
+
+        // Layer visibility window — slightly wider so cross-fade overlaps gracefully
+        let vis = 1 - clamp01((Math.abs(d) - 0.4) / 0.55);
+        vis = easeOutExpo(vis);
+
+        const enterT = clamp01((d + 0.85) / 0.85);
+        const exitT  = clamp01((d - 0.15) / 0.7);
+
+        // Scale: enters at 1.08, settles at 1.0, drifts to 0.96 on exit
+        const enterScale = 1.08 - 0.08 * easeOutExpo(enterT);
+        const exitScale = 1 - 0.04 * easeInOutCubic(exitT);
+        const scale = enterScale * exitScale;
+
+        // Blur: clears as it enters, returns slightly on exit
+        const enterBlur = 8 * (1 - easeOutExpo(enterT));
+        const exitBlur = 4 * easeInOutCubic(exitT);
+        const blur = enterBlur + exitBlur;
+
+        gsap.set(lay, {
+          opacity: vis,
+          scale: scale,
+          filter: `blur(${blur.toFixed(2)}px)`
+        });
+
+        // Slow inner parallax — counter-drift inside the layer for depth
+        const inner = lay.querySelector('img, video');
+        if (inner) {
+          const drift = clamp01((d + 1) / 2) * 0.08; // -1..1 mapped to 0..0.08
+          gsap.set(inner, { scale: 1.0 + drift, y: -drift * 24 });
+        }
+      });
+
+      // Pips: smooth fill driven by global progress
+      const activeIdx = Math.min(N - 1, Math.round(v));
+      pips.forEach((pip, i) => pip.classList.toggle('is-active', i <= activeIdx));
+    }
+  });
+
+  /* Parallax bleeds */
+  gsap.utils.toArray('.parallax-bleed').forEach((el) => {
+    const media = el.querySelector('video, img');
+    if (media) gsap.to(media, {
+      y: '12%', ease: 'none',
+      scrollTrigger: { trigger: el, start: 'top bottom', end: 'bottom top', scrub: true }
+    });
+    gsap.from(el.querySelector('.caption'), {
+      y: 60, opacity: 0, duration: 1.2, ease: 'expo.out',
+      scrollTrigger: { trigger: el, start: 'top 70%' }
+    });
+  });
+
+  /* Tech / Daily / Capabilities reveals */
+  gsap.from('.tech .header > div', {
+    y: 50, opacity: 0, stagger: 0.1, duration: 1.2, ease: 'expo.out',
+    scrollTrigger: { trigger: '.tech', start: 'top 75%' }
+  });
+  gsap.from('.spec', {
+    y: 40, opacity: 0, stagger: 0.08, duration: 1.0, ease: 'expo.out',
+    scrollTrigger: { trigger: '.specs', start: 'top 80%' }
+  });
+  gsap.from('.detail-grid .item', {
+    y: 50, opacity: 0, stagger: 0.08, duration: 1.1, ease: 'expo.out',
+    scrollTrigger: { trigger: '.detail-grid', start: 'top 80%' }
+  });
+  gsap.from('.daily-intro h2, .daily-intro p', {
+    y: 50, opacity: 0, stagger: 0.1, duration: 1.2, ease: 'expo.out',
+    scrollTrigger: { trigger: '.daily-intro', start: 'top 75%' }
+  });
+  gsap.from('.scene', {
+    y: 50, opacity: 0, stagger: 0.08, duration: 1.0, ease: 'expo.out',
+    scrollTrigger: { trigger: '.scenes', start: 'top 80%' }
+  });
+  gsap.from('.capabilities .head > *', {
+    y: 50, opacity: 0, stagger: 0.1, duration: 1.2, ease: 'expo.out',
+    scrollTrigger: { trigger: '.capabilities', start: 'top 75%' }
+  });
+  gsap.from('.cap', {
+    y: 50, opacity: 0, stagger: 0.12, duration: 1.1, ease: 'expo.out',
+    scrollTrigger: { trigger: '.cap-grid', start: 'top 80%' }
+  });
+  /* Process */
+  gsap.from('.process .head > *', {
+    y: 50, opacity: 0, stagger: 0.1, duration: 1.2, ease: 'expo.out',
+    scrollTrigger: { trigger: '.process', start: 'top 75%' }
+  });
+  gsap.from('.process-film', {
+    y: 60, opacity: 0, duration: 1.4, ease: 'expo.out',
+    scrollTrigger: { trigger: '.process-film', start: 'top 80%' }
+  });
+  gsap.from('.process-step', {
+    y: 50, opacity: 0, stagger: 0.1, duration: 1.1, ease: 'expo.out',
+    scrollTrigger: { trigger: '.process-steps', start: 'top 80%' }
+  });
+  gsap.utils.toArray('.process-artifact').forEach((el) => {
+    gsap.from(el, {
+      y: 60, opacity: 0, duration: 1.3, ease: 'expo.out',
+      scrollTrigger: { trigger: el, start: 'top 80%' }
+    });
+  });
+  gsap.from('.award .top > *', {
+    y: 50, opacity: 0, stagger: 0.1, duration: 1.2, ease: 'expo.out',
+    scrollTrigger: { trigger: '.award .top', start: 'top 75%' }
+  });
+  gsap.from('.news-list a', {
+    y: 30, opacity: 0, stagger: 0.07, duration: 0.9, ease: 'expo.out',
+    scrollTrigger: { trigger: '.news', start: 'top 80%' }
+  });
+  gsap.from('.awards-lineup .label, .award-card', {
+    y: 40, opacity: 0, stagger: 0.08, duration: 1.0, ease: 'expo.out',
+    scrollTrigger: { trigger: '.awards-lineup', start: 'top 85%' }
+  });
+  gsap.from('.credits > *', {
+    y: 30, opacity: 0, stagger: 0.1, duration: 1.0, ease: 'expo.out',
+    scrollTrigger: { trigger: '.credits', start: 'top 85%' }
+  });
+  gsap.from('.cta-section h2, .cta-section p, .cta-section .cta-button', {
+    y: 60, opacity: 0, stagger: 0.1, duration: 1.2, ease: 'expo.out',
+    scrollTrigger: { trigger: '.cta-section', start: 'top 75%' }
+  });
+
+  /* Anchor links */
+  document.querySelectorAll('a[href^="#"]').forEach(a => {
+    a.addEventListener('click', (e) => {
+      const id = a.getAttribute('href');
+      if (id.length > 1) {
+        const target = document.querySelector(id);
+        if (target) { e.preventDefault(); lenis.scrollTo(target, { duration: 1.2 }); }
+      }
+    });
+  });
+</script>
+
+<script>
+  /* Background music — local-friendly: starts on first user interaction, toggle button always works. */
+  (function () {
+    const audio = document.getElementById('bg-audio');
+    const toggle = document.getElementById('audio-toggle');
+    if (!audio || !toggle) return;
+
+    audio.volume = 0.35;
+    audio.muted = false;
+    let isOn = false;
+
+    function turnOn() {
+      const p = audio.play();
+      if (p && p.then) {
+        p.then(() => {
+          toggle.classList.remove('is-muted');
+          isOn = true;
+        }).catch(() => {});
+      }
+    }
+    function turnOff() {
+      audio.pause();
+      toggle.classList.add('is-muted');
+      isOn = false;
+    }
+
+    // Start on first user interaction (any kind)
+    const events = ['click', 'touchstart', 'keydown', 'wheel', 'pointerdown', 'mousemove', 'scroll'];
+    function firstGesture() {
+      if (!isOn) turnOn();
+      events.forEach(ev => window.removeEventListener(ev, firstGesture, true));
+    }
+    events.forEach(ev => window.addEventListener(ev, firstGesture, { capture: true, passive: true }));
+
+    // Manual toggle
+    toggle.addEventListener('click', function (e) {
+      e.stopPropagation();
+      if (isOn) turnOff(); else turnOn();
+    });
+  })();
+</script>
+
+<script src="https://player.vimeo.com/api/player.js"></script>
+<script>
+  /* Scroll-triggered Vimeo autoplay — plays when in viewport, pauses when out. */
+  (function () {
+    if (!window.Vimeo || !('IntersectionObserver' in window)) return;
+    const iframes = document.querySelectorAll('iframe[data-vimeo]');
+    const players = [];
+    iframes.forEach(f => {
+      try {
+        const p = new Vimeo.Player(f);
+        p.setVolume(0).catch(() => {});
+        p.setLoop(true).catch(() => {});
+        // Match wrapper aspect-ratio to the actual video so there's no letterbox.
+        Promise.all([p.getVideoWidth(), p.getVideoHeight()]).then(([w, h]) => {
+          if (w && h && f.parentElement) {
+            f.parentElement.style.aspectRatio = w + ' / ' + h;
+          }
+        }).catch(() => {});
+        players.push({ el: f, p });
+      } catch (e) {}
+    });
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        const rec = players.find(x => x.el === entry.target);
+        if (!rec) return;
+        if (entry.isIntersecting && entry.intersectionRatio >= 0.35) {
+          rec.p.play().catch(() => {});
+        } else {
+          rec.p.pause().catch(() => {});
+        }
+      });
+    }, { threshold: [0, 0.35, 0.6, 1] });
+    iframes.forEach(f => io.observe(f));
+  })();
+</script>
+</body>
+</html>
