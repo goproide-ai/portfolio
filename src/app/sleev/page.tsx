@@ -9,7 +9,7 @@ export default function SleevPage() {
     if (nav) {
       nav.dataset.originalBg = nav.style.cssText;
       nav.style.cssText =
-        "background: rgba(239, 236, 228, 0.85) !important; backdrop-filter: blur(16px) !important; border-bottom: 1px solid rgba(200, 195, 180, 0.3) !important;";
+        "background: rgba(239, 236, 228, 0.55) !important; backdrop-filter: blur(20px) !important; border-bottom: 1px solid rgba(200, 195, 180, 0.2) !important;";
       // Change text colors
       const links = nav.querySelectorAll("a, span, button");
       links.forEach((el) => {
