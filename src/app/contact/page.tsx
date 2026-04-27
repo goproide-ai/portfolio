@@ -80,9 +80,9 @@ export default function Contact() {
       <div className="relative min-h-[calc(100vh-4rem)] overflow-hidden py-20 px-6">
         <PulseRings />
         <div className="relative z-10 max-w-4xl mx-auto pt-4">
-          {/* Image with title overlay */}
-          <div className="mb-10 overflow-hidden rounded-lg relative bg-[#0a0a0a]">
-            <div className={`${!isWhite ? "scale-[1.08] origin-center" : ""}`}>
+          {/* Image */}
+          <div className="overflow-hidden rounded-lg relative bg-[#0a0a0a]">
+            <div className="scale-[1.08] origin-center">
               <Image
                 src={isWhite ? "/pptx/busan_city_white.jpg" : "/pptx/busan_city_v2.jpg"}
                 alt="Busan World Design Capital 2028"
@@ -91,15 +91,17 @@ export default function Contact() {
                 className="w-full h-auto"
               />
             </div>
-            <div className="absolute bottom-0 left-0 right-0 p-6">
-              <button
-                onClick={toggleMusic}
-                className="block w-full text-base md:text-2xl font-bold tracking-tight hover:text-[#8B5CF6] transition-colors cursor-pointer text-left"
-              style={{ color: "#fff" }}
-              >
-                Congratulations to Busan on being selected as the World Design Capital 2028! {playing ? "♫" : "♪"}
-              </button>
-            </div>
+          </div>
+
+          {/* Title */}
+          <div className="mt-12 mb-16">
+            <button
+              onClick={toggleMusic}
+              className="block w-full text-base md:text-2xl font-bold tracking-tight hover:text-[#8B5CF6] transition-colors cursor-pointer text-left"
+              style={{ color: isWhite ? "#222" : "#fff" }}
+            >
+              Congratulations to Busan on being selected as the World Design Capital 2028! {playing ? "♫" : "♪"}
+            </button>
           </div>
 
           {/* News */}
