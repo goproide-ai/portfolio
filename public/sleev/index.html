@@ -1004,6 +1004,58 @@
   }
   /* Each section's English <p> already sets font-size + max-width + alignment;
      by using inherit above, the Korean line tracks the English line exactly. */
+
+  /* ── Mobile: Sensing/Form/Daily section stacks vertically ── */
+  @media (max-width: 900px) {
+    .pin-feat {
+      height: auto;
+    }
+    .pin-feat-stage {
+      position: relative;
+      top: auto;
+      height: auto;
+      grid-template-columns: 1fr;
+      gap: 32px;
+      padding: 80px 24px;
+    }
+    .pin-feat-media {
+      position: relative;
+      aspect-ratio: 4/5;
+      width: 100%;
+    }
+    .pin-feat-media .layer {
+      opacity: 1 !important;
+      transform: none !important;
+      filter: none !important;
+      clip-path: none !important;
+      position: relative;
+      display: none;
+    }
+    .pin-feat-media .layer:first-child {
+      display: block;
+    }
+    .pin-feat-text {
+      position: relative;
+      height: auto;
+      overflow: visible;
+    }
+    .pin-feat-text .panel {
+      position: relative;
+      opacity: 1 !important;
+      transform: none !important;
+      filter: none !important;
+      margin-bottom: 80px;
+    }
+    .pin-feat-text .panel:last-child { margin-bottom: 0; }
+    .pin-feat-text .panel .reveal > span {
+      transform: none !important;
+      opacity: 1 !important;
+    }
+    .pin-feat-progress { display: none; }
+
+    /* Each panel gets its own paired media above on mobile */
+    .pin-feat-stage::before { content: none; }
+  }
 </style>
 </head>
 <body>

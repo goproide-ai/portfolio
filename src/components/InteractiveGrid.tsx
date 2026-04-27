@@ -119,17 +119,31 @@ export default function InteractiveGrid({ theme = "black" }: Props) {
 
     const onMove  = (e: MouseEvent) => { mouseRef.current = { x: e.clientX, y: e.clientY }; };
     const onLeave = ()               => { mouseRef.current = { x: -2000, y: -2000 }; };
+    const onTouch = (e: TouchEvent) => {
+      if (e.touches.length > 0) {
+        mouseRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      }
+    };
+    const onTouchEnd = () => { mouseRef.current = { x: -2000, y: -2000 }; };
 
     resize();
     window.addEventListener("resize",    resize);
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseleave", onLeave);
+    window.addEventListener("touchstart", onTouch, { passive: true });
+    window.addEventListener("touchmove",  onTouch, { passive: true });
+    window.addEventListener("touchend",   onTouchEnd);
+    window.addEventListener("touchcancel", onTouchEnd);
     rafRef.current = requestAnimationFrame(draw);
 
     return () => {
       window.removeEventListener("resize",    resize);
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseleave", onLeave);
+      window.removeEventListener("touchstart", onTouch);
+      window.removeEventListener("touchmove",  onTouch);
+      window.removeEventListener("touchend",   onTouchEnd);
+      window.removeEventListener("touchcancel", onTouchEnd);
       cancelAnimationFrame(rafRef.current);
     };
   }, [draw]);
