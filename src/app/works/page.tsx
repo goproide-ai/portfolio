@@ -18,9 +18,9 @@ const projects = [
     sub: "Personal Project · 2025",
     category: "Industrial Design",
     awards: ["2025 Korea Design Exhibition — Presidential Award (Grand Prize)", "2025 Red Dot Design Award, Winner", "2025 Busan International Design Award, Silver", "2025 Daejeon Design Award, Gold"],
-    img: "/sleev/assets/form-detail.jpg",
-    imgFit: "cover-top" as const,
-    imgBg: "white" as const,
+    img: "/pptx/sleev_black.jpg",
+    imgBg: "black" as const,
+    blendLighten: true as const,
     role: "Industrial Design 50%",
   },
   {
@@ -206,7 +206,7 @@ export default function Works() {
                         alt={p.title}
                         fill
                         sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, (max-width: 1280px) 33vw, 25vw"
-                        className={`${"imgFit" in p && p.imgFit === "contain" ? "object-contain" : "object-cover"} transition-transform duration-500 ease-out group-hover:scale-105`}
+                        className={`${"imgFit" in p && p.imgFit === "contain" ? "object-contain" : "object-cover"} ${"blendLighten" in p && p.blendLighten ? "mix-blend-lighten" : ""} transition-transform duration-500 ease-out group-hover:scale-105`}
                         style={{ transformOrigin: "center center", objectPosition: ("imgFit" in p && p.imgFit === "cover-top") ? "50% 18%" : "center" }}
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-transparent to-transparent opacity-60" />
