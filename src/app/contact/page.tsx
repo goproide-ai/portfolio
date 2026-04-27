@@ -80,24 +80,14 @@ export default function Contact() {
       <div className="relative min-h-[calc(100vh-4rem)] overflow-hidden py-20 px-6">
         <PulseRings />
         <div className="relative z-10 max-w-4xl mx-auto pt-4">
-          {/* Image */}
-          <div className="overflow-hidden rounded-lg relative bg-[#0a0a0a]">
-            <div className="scale-[1.08] origin-center">
-              <Image
-                src={isWhite ? "/pptx/busan_city_white.jpg" : "/pptx/busan_city_v2.jpg"}
-                alt="Busan World Design Capital 2028"
-                width={1400}
-                height={700}
-                className="w-full h-auto"
-              />
-            </div>
-          </div>
-
           {/* Title */}
-          <div className="mt-12 mb-16">
+          <div className="mt-8 mb-20">
+            <p className="font-mono text-[10px] tracking-[0.5em] uppercase mb-6" style={{ color: isWhite ? "#8B5CF6" : "#8B5CF6" }}>
+              World Design Capital 2028
+            </p>
             <button
               onClick={toggleMusic}
-              className="block w-full text-base md:text-2xl font-bold tracking-tight hover:text-[#8B5CF6] transition-colors cursor-pointer text-left"
+              className="block w-full text-xl md:text-3xl font-bold tracking-tight leading-snug hover:text-[#8B5CF6] transition-colors cursor-pointer text-left"
               style={{ color: isWhite ? "#222" : "#fff" }}
             >
               Congratulations to Busan on being selected as the World Design Capital 2028! {playing ? "♫" : "♪"}
@@ -105,7 +95,7 @@ export default function Contact() {
           </div>
 
           {/* News */}
-          <div className="mb-12 mt-8">
+          <div className="mb-12 mt-16">
             <h2 className="font-mono text-[10px] tracking-[0.3em] text-[#38BDF8] uppercase mb-6">Related News</h2>
             <div className="space-y-px">
               {wdcNews.map((n, i) => (
@@ -114,16 +104,16 @@ export default function Contact() {
                   href={n.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="group flex items-center gap-6 py-5 px-4 bg-[#0a0a0a] border-b border-[#1a1a1a] hover:bg-[#111] transition-colors"
+                  className={`group flex items-center gap-6 py-5 px-4 border-b transition-colors ${isWhite ? "bg-white border-[#e5e5e5] hover:bg-[#f5f3ec]" : "bg-[#0a0a0a] border-[#1a1a1a] hover:bg-[#111]"}`}
                 >
-                  <div className="w-10 h-10 border border-[#2a2a2a] flex items-center justify-center shrink-0">
-                    <span className="font-mono text-[9px] text-[#555]">{String(i + 1).padStart(2, "0")}</span>
+                  <div className={`w-10 h-10 border flex items-center justify-center shrink-0 ${isWhite ? "border-[#ccc]" : "border-[#2a2a2a]"}`}>
+                    <span className={`font-mono text-[9px] ${isWhite ? "text-[#888]" : "text-[#555]"}`}>{String(i + 1).padStart(2, "0")}</span>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-mono text-[9px] text-[#555] mb-1">{n.source}</p>
-                    <h3 className="text-sm text-[#ccc] group-hover:text-[#8B5CF6] transition-colors leading-6">{n.title}</h3>
+                    <p className={`font-mono text-[9px] mb-1 ${isWhite ? "text-[#888]" : "text-[#555]"}`}>{n.source}</p>
+                    <h3 className={`text-sm group-hover:text-[#8B5CF6] transition-colors leading-6 ${isWhite ? "text-[#333]" : "text-[#ccc]"}`}>{n.title}</h3>
                   </div>
-                  <span className="font-mono text-[10px] text-[#444] group-hover:text-[#8B5CF6] group-hover:translate-x-1 transition-all shrink-0">→</span>
+                  <span className={`font-mono text-[10px] group-hover:text-[#8B5CF6] group-hover:translate-x-1 transition-all shrink-0 ${isWhite ? "text-[#888]" : "text-[#444]"}`}>→</span>
                 </a>
               ))}
             </div>

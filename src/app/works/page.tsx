@@ -18,8 +18,9 @@ const projects = [
     sub: "Personal Project · 2025",
     category: "Industrial Design",
     awards: ["2025 Korea Design Exhibition — Presidential Award (Grand Prize)", "2025 Red Dot Design Award, Winner", "2025 Busan International Design Award, Silver", "2025 Daejeon Design Award, Gold"],
-    img: "/sleev/assets/hero-alt.jpg",
+    img: "/sleev/assets/form-detail.jpg",
     imgFit: "cover-top" as const,
+    imgBg: "white" as const,
     role: "Industrial Design 50%",
   },
   {
