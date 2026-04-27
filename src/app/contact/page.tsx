@@ -80,9 +80,23 @@ export default function Contact() {
       <div className="relative min-h-[calc(100vh-4rem)] overflow-hidden py-20 px-6">
         <PulseRings />
         <div className="relative z-10 max-w-4xl mx-auto pt-4">
+          {/* Image — Busan WDC 3D city */}
+          <div className={`overflow-hidden rounded-lg relative ${isWhite ? "bg-[#f5f3ec]" : "bg-[#0a0a0a]"} mb-12`}>
+            <div className="scale-[1.04] origin-center">
+              <Image
+                src={isWhite ? "/pptx/busan_city_white.jpg" : "/pptx/busan_city_v2.jpg"}
+                alt="Busan World Design Capital 2028"
+                width={1400}
+                height={700}
+                className="w-full h-auto"
+                unoptimized
+              />
+            </div>
+          </div>
+
           {/* Title */}
-          <div className="mt-8 mb-20">
-            <p className="font-mono text-[10px] tracking-[0.5em] uppercase mb-6" style={{ color: isWhite ? "#8B5CF6" : "#8B5CF6" }}>
+          <div className="mt-12 mb-20">
+            <p className="font-mono text-[10px] tracking-[0.5em] uppercase mb-6" style={{ color: "#8B5CF6" }}>
               World Design Capital 2028
             </p>
             <button
