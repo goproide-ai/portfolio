@@ -108,10 +108,8 @@ export default function Contact() {
             </button>
           </div>
 
-          {/* Explicit vertical spacers — non-collapsing blank lines */}
-          <div style={{ height: "120px" }} aria-hidden="true" />
-          <div style={{ height: "60px" }} aria-hidden="true" />
-          <div style={{ height: "60px" }} aria-hidden="true" />
+          {/* Explicit vertical spacer — non-collapsing blank line */}
+          <div style={{ height: "48px" }} aria-hidden="true" />
 
           {/* News */}
           <div className="mb-12">

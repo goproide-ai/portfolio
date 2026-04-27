@@ -211,17 +211,32 @@ export default function ParticleNet() {
       mouseRef.current = { x: e.clientX - rect.left, y: e.clientY - rect.top };
     };
     const onLeave = () => { mouseRef.current = { x: -9999, y: -9999 }; };
+    const onTouch = (e: TouchEvent) => {
+      if (e.touches.length > 0) {
+        const rect = canvas.getBoundingClientRect();
+        mouseRef.current = { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
+      }
+    };
+    const onTouchEnd = () => { mouseRef.current = { x: -9999, y: -9999 }; };
 
     resize();
     window.addEventListener("resize", resize);
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseleave", onLeave);
+    window.addEventListener("touchstart", onTouch, { passive: true });
+    window.addEventListener("touchmove", onTouch, { passive: true });
+    window.addEventListener("touchend", onTouchEnd);
+    window.addEventListener("touchcancel", onTouchEnd);
     rafRef.current = requestAnimationFrame(draw);
 
     return () => {
       window.removeEventListener("resize", resize);
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseleave", onLeave);
+      window.removeEventListener("touchstart", onTouch);
+      window.removeEventListener("touchmove", onTouch);
+      window.removeEventListener("touchend", onTouchEnd);
+      window.removeEventListener("touchcancel", onTouchEnd);
       cancelAnimationFrame(rafRef.current);
     };
   }, [draw, init]);
