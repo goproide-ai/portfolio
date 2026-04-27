@@ -95,7 +95,7 @@ export default function Contact() {
           </div>
 
           {/* Title */}
-          <div className="mt-12 mb-20">
+          <div className="mt-12">
             <p className="font-mono text-[10px] tracking-[0.5em] uppercase mb-6" style={{ color: "#8B5CF6" }}>
               World Design Capital 2028
             </p>
@@ -108,8 +108,13 @@ export default function Contact() {
             </button>
           </div>
 
+          {/* Explicit vertical spacers — non-collapsing blank lines */}
+          <div style={{ height: "120px" }} aria-hidden="true" />
+          <div style={{ height: "60px" }} aria-hidden="true" />
+          <div style={{ height: "60px" }} aria-hidden="true" />
+
           {/* News */}
-          <div className="mb-12 mt-16">
+          <div className="mb-12">
             <h2 className="font-mono text-[10px] tracking-[0.3em] text-[#38BDF8] uppercase mb-6">Related News</h2>
             <div className="space-y-px">
               {wdcNews.map((n, i) => (
