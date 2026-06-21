@@ -21,7 +21,7 @@ export default function Navigation() {
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-[#0a0a0a]/80 backdrop-blur-md border-b border-[#1a1a1a]">
-      <div className="max-w-7xl mx-auto pl-10 pr-7 md:pl-6 md:pr-6 h-16 flex items-center justify-between">
+      <div className="h-16 flex items-center justify-between" style={{ paddingLeft: "clamp(1.5rem, 4vw, 3rem)", paddingRight: "clamp(1.25rem, 3.5vw, 3rem)" }}>
         <Link href="/" className="font-mono text-sm tracking-[0.3em] text-[#999] hover:text-white transition-colors">
           SUNGCHAN KO
         </Link>
