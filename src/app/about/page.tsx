@@ -172,14 +172,14 @@ export default function About() {
             <div className="mt-8 relative">
               <div
                 ref={scrollerRef}
-                className={`flex gap-4 overflow-x-auto snap-x snap-mandatory scroll-smooth pb-4 ${isWhite ? "scrollbar-light" : "scrollbar-dark"}`}
+                className={`flex items-stretch gap-4 overflow-x-auto snap-x snap-mandatory scroll-smooth pb-4 ${isWhite ? "scrollbar-light" : "scrollbar-dark"}`}
               >
                 {awardImages.map((img, i) => (
                   <button
                     key={img.src}
                     onClick={() => setLightboxIdx(i)}
                     className={`snap-center shrink-0 relative group overflow-hidden border transition-colors ${isWhite ? "bg-[#f5f3ec] border-[#d8d4c8] hover:border-[#8B5CF6]/60" : "bg-[#0a0a0a] border-[#1a1a1a] hover:border-[#8B5CF6]/60"}`}
-                    style={{ width: "clamp(150px, 22vw, 215px)", aspectRatio: "3/4" }}
+                    style={{ width: "clamp(150px, 22vw, 215px)", height: "clamp(200px, 29vw, 287px)" }}
                   >
                     <Image
                       src={img.src}
