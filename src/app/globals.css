@@ -44,6 +44,25 @@
   --font-mono: 'Geist Mono', 'Courier New', monospace;
 }
 
+/* Theme-aware scrollbars for award carousel */
+.scrollbar-dark {
+  scrollbar-width: thin;
+  scrollbar-color: #2a2a2a #0a0a0a;
+}
+.scrollbar-dark::-webkit-scrollbar { height: 8px; }
+.scrollbar-dark::-webkit-scrollbar-track { background: #0a0a0a; }
+.scrollbar-dark::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 4px; }
+.scrollbar-dark::-webkit-scrollbar-thumb:hover { background: #3a3a3a; }
+
+.scrollbar-light {
+  scrollbar-width: thin;
+  scrollbar-color: #c8c4b8 #efece4;
+}
+.scrollbar-light::-webkit-scrollbar { height: 8px; }
+.scrollbar-light::-webkit-scrollbar-track { background: #efece4; }
+.scrollbar-light::-webkit-scrollbar-thumb { background: #c8c4b8; border-radius: 4px; }
+.scrollbar-light::-webkit-scrollbar-thumb:hover { background: #a8a496; }
+
 * {
   margin: 0;
   padding: 0;
