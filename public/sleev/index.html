@@ -1047,9 +1047,15 @@
       margin-bottom: 80px;
     }
     .pin-feat-text .panel:last-child { margin-bottom: 0; }
+    /* Force every child (paragraphs, meta, num, reveal spans) visible — overrides GSAP inline styles */
+    .pin-feat-text .panel *,
+    .pin-feat-text .panel p,
+    .pin-feat-text .panel .meta,
+    .pin-feat-text .panel .num,
     .pin-feat-text .panel .reveal > span {
-      transform: none !important;
       opacity: 1 !important;
+      transform: none !important;
+      filter: none !important;
     }
     .pin-feat-progress { display: none; }
 
@@ -1640,39 +1646,27 @@
   const panels = gsap.utils.toArray('.pin-feat-text .panel');
   const pips = gsap.utils.toArray('.pin-feat-progress span');
   const N = panels.length; // 3
-  const isMobileFeat = window.matchMedia('(max-width: 900px)').matches;
 
-  // Initial states — only override on desktop. On mobile, leave CSS to control.
-  if (!isMobileFeat) {
-    panels.forEach((p, i) => {
-      gsap.set(p, { opacity: i === 0 ? 1 : 0, y: 0 });
-      // body paragraphs + meta enter together with subtle stagger
-      const body = p.querySelectorAll('p, .meta, .num');
-      gsap.set(body, { opacity: i === 0 ? 1 : 0, y: i === 0 ? 0 : 24 });
-      const words = p.querySelectorAll('.reveal > span');
-      gsap.set(words, { yPercent: i === 0 ? 0 : 110 });
-    });
-    layers.forEach((l, i) => {
-      gsap.set(l, { opacity: i === 0 ? 1 : 0, scale: i === 0 ? 1 : 1.08, filter: i === 0 ? 'blur(0px)' : 'blur(8px)' });
-      const inner = l.querySelector('img, video');
-      if (inner) gsap.set(inner, { scale: 1.0 });
-    });
-  } else {
-    // Mobile: force all panels and body content visible — no scroll-based animation
-    panels.forEach((p) => {
-      gsap.set(p, { opacity: 1, y: 0, clearProps: 'filter' });
-      const body = p.querySelectorAll('p, .meta, .num');
-      gsap.set(body, { opacity: 1, y: 0 });
-      const words = p.querySelectorAll('.reveal > span');
-      gsap.set(words, { yPercent: 0, opacity: 1 });
-    });
-  }
+  // Initial states
+  panels.forEach((p, i) => {
+    gsap.set(p, { opacity: i === 0 ? 1 : 0, y: 0 });
+    // body paragraphs + meta enter together with subtle stagger
+    const body = p.querySelectorAll('p, .meta, .num');
+    gsap.set(body, { opacity: i === 0 ? 1 : 0, y: i === 0 ? 0 : 24 });
+    const words = p.querySelectorAll('.reveal > span');
+    gsap.set(words, { yPercent: i === 0 ? 0 : 110 });
+  });
+  layers.forEach((l, i) => {
+    gsap.set(l, { opacity: i === 0 ? 1 : 0, scale: i === 0 ? 1 : 1.08, filter: i === 0 ? 'blur(0px)' : 'blur(8px)' });
+    const inner = l.querySelector('img, video');
+    if (inner) gsap.set(inner, { scale: 1.0 });
+  });
 
   function easeOutExpo(t) { return t === 1 ? 1 : 1 - Math.pow(2, -10 * t); }
   function easeInOutCubic(t) { return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; }
   function clamp01(x) { return Math.max(0, Math.min(1, x)); }
 
-  if (!isMobileFeat) ScrollTrigger.create({
+  ScrollTrigger.create({
     trigger: '.pin-feat',
     start: 'top top',
     end: 'bottom bottom',
