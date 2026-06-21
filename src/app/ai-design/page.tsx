@@ -21,6 +21,31 @@ export default function AIDesign() {
             </p>
           </div>
 
+          {/* Advisory & Jury */}
+          <section className="mb-16">
+            <h2 className="font-mono text-[10px] tracking-[0.3em] text-[#38BDF8] uppercase mb-8 gradient-border-b pb-2">
+              Advisory & Jury
+            </h2>
+            <div className="space-y-px">
+              {[
+                { year: "2026", title: "행정안전부 범정부 UX/UI 혁신 자문단 자문위원" },
+                { year: "2026", title: "산업통상부 KEIT AI 자문위원 / 기획위원" },
+                { year: "2026", title: "광주 코리아디자인멤버십+ 7기 신입 선발 심사위원" },
+                { year: "2025", title: "K-Design Award 제품디자인 심사위원" },
+                { year: "2025", title: "한국디자인진흥원 AI 디자인 자격시험 자문위원" },
+                { year: "2025", title: "서울인천 코리아디자인멤버십+ 6기 신입 선발 심사위원" },
+                { year: "2024", title: "삼성전자 신입사원 채용 심사위원" },
+                { year: "2024", title: "삼성디자인멤버십 33기 채용 심사위원" },
+                { year: "2023–25", title: "삼성디자인멤버십 제품디자인 튜터" },
+              ].map((l, i) => (
+                <div key={i} className="flex items-baseline gap-6 py-4 border-b border-[#1a1a1a] group hover:bg-[#111] px-4 transition-colors">
+                  <span className="font-mono text-[10px] text-[#555] w-16 shrink-0">{l.year}</span>
+                  <p className="text-sm text-[#999] leading-7 group-hover:text-[#ccc] transition-colors">{l.title}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+
           {/* Lectures & Workshops */}
           <section className="mb-16">
             <h2 className="font-mono text-[10px] tracking-[0.3em] text-[#38BDF8] uppercase mb-8 gradient-border-b pb-2">
@@ -37,31 +62,6 @@ export default function AIDesign() {
                 { year: "2024", title: "서울디자인재단 디자인리더 네트워크, 4인의 디자인리더 제품&AI 부문 대표 발제" },
                 { year: "2024", title: "DDP 디자인론칭페어 멘토링, 특별 강연" },
                 { year: "2024", title: "코리아그래픽스 초청 강연" },
-              ].map((l, i) => (
-                <div key={i} className="flex items-baseline gap-6 py-4 border-b border-[#1a1a1a] group hover:bg-[#111] px-4 transition-colors">
-                  <span className="font-mono text-[10px] text-[#555] w-16 shrink-0">{l.year}</span>
-                  <p className="text-sm text-[#999] leading-7 group-hover:text-[#ccc] transition-colors">{l.title}</p>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          {/* Advisory & Jury */}
-          <section className="mb-16">
-            <h2 className="font-mono text-[10px] tracking-[0.3em] text-[#38BDF8] uppercase mb-8 gradient-border-b pb-2">
-              Advisory & Jury
-            </h2>
-            <div className="space-y-px">
-              {[
-                { year: "2026", title: "광주 코리아디자인멤버십+ 7기 신입 선발 심사위원" },
-                { year: "2025", title: "산업통상자원부 산업기술기획평가원 AI 자문위원 / 정부 R&D과제 RFP 편집위원" },
-                { year: "2025", title: "K-Design Award 제품디자인 심사위원" },
-                { year: "2025", title: "한국디자인진흥원 AI 디자인 자격시험 자문위원" },
-                { year: "2025", title: "NIA 범정부 UX/UI 혁신 자문위원" },
-                { year: "2025", title: "서울인천 코리아디자인멤버십+ 6기 신입 선발 심사위원" },
-                { year: "2024", title: "삼성전자 신입사원 채용 심사위원" },
-                { year: "2024", title: "삼성디자인멤버십 33기 채용 심사위원" },
-                { year: "2023–25", title: "삼성디자인멤버십 제품디자인 튜터" },
               ].map((l, i) => (
                 <div key={i} className="flex items-baseline gap-6 py-4 border-b border-[#1a1a1a] group hover:bg-[#111] px-4 transition-colors">
                   <span className="font-mono text-[10px] text-[#555] w-16 shrink-0">{l.year}</span>
