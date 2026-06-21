@@ -182,15 +182,13 @@ export default function About() {
                     key={img.src}
                     onClick={() => setLightboxIdx(i)}
                     className={`snap-center shrink-0 relative group overflow-hidden border transition-colors ${isWhite ? "bg-[#f5f3ec] border-[#d8d4c8] hover:border-[#8B5CF6]/60" : "bg-[#0a0a0a] border-[#1a1a1a] hover:border-[#8B5CF6]/60"}`}
-                    style={{ width: "clamp(150px, 22vw, 215px)", height: "clamp(200px, 29vw, 287px)" }}
+                    style={{ height: "clamp(200px, 29vw, 287px)" }}
                   >
-                    <Image
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
                       src={img.src}
                       alt={img.title}
-                      fill
-                      sizes="320px"
-                      className="object-contain transition-transform duration-500 group-hover:scale-105"
-                      unoptimized
+                      className="h-full w-auto block transition-transform duration-500 group-hover:scale-105"
                     />
                     <div className="absolute top-2 left-2 bg-[#0a0a0a]/80 px-2 py-0.5 font-mono text-[9px] text-[#8B5CF6]">
                       {String(i + 1).padStart(2, "0")}
