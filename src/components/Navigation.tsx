@@ -21,7 +21,7 @@ export default function Navigation() {
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-[#0a0a0a]/80 backdrop-blur-md border-b border-[#1a1a1a]">
-      <div className="h-16 flex items-center justify-between" style={{ paddingLeft: "clamp(1.5rem, 4vw, 3rem)", paddingRight: "clamp(1.25rem, 3.5vw, 3rem)" }}>
+      <div className="h-16 flex items-center justify-between" style={{ paddingLeft: "clamp(1.5rem, 4vw, 3rem)", paddingRight: "clamp(1rem, 3.5vw, 3rem)" }}>
         <Link href="/" className="font-mono text-sm tracking-[0.3em] text-[#999] hover:text-white transition-colors">
           SUNGCHAN KO
         </Link>
@@ -56,7 +56,7 @@ export default function Navigation() {
 
         {/* Mobile hamburger */}
         <button
-          className="md:hidden flex flex-col gap-1.5 p-3 mr-1"
+          className="md:hidden flex flex-col items-center justify-center gap-1.5 p-3"
           onClick={() => setMobileOpen(!mobileOpen)}
           aria-label="Toggle menu"
         >
