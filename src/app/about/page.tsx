@@ -3,9 +3,39 @@
 import Image from "next/image";
 import ParticleNet from "@/components/ParticleNet";
 import { useTheme } from "@/context/ThemeContext";
+import { useState, useRef, useEffect } from "react";
+
+const awardImages = [
+  { src: "/awards/1.png", title: "대한민국디자인전람회 대통령상 (Grand Prize)" },
+  { src: "/awards/2.jpg", title: "Red Dot Design Award, Winner 2025" },
+  { src: "/awards/3.png", title: "Asia Design Prize 2026, Winner" },
+  { src: "/awards/4.png", title: "K-Design Award 2025, Gold Winner" },
+  { src: "/awards/5.png", title: "부산국제디자인어워드 Silver" },
+  { src: "/awards/6.png", title: "대전디자인어워드 금상" },
+];
 
 export default function About() {
   const { isWhite } = useTheme();
+  const [lightboxIdx, setLightboxIdx] = useState<number | null>(null);
+  const scrollerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (lightboxIdx === null) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setLightboxIdx(null);
+      if (e.key === "ArrowRight") setLightboxIdx((i) => (i === null ? null : (i + 1) % awardImages.length));
+      if (e.key === "ArrowLeft") setLightboxIdx((i) => (i === null ? null : (i - 1 + awardImages.length) % awardImages.length));
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [lightboxIdx]);
+
+  const scrollBy = (dir: number) => {
+    if (scrollerRef.current) {
+      scrollerRef.current.scrollBy({ left: dir * scrollerRef.current.clientWidth * 0.8, behavior: "smooth" });
+    }
+  };
+
   return (
     <div className="relative min-h-screen overflow-hidden">
       <ParticleNet />
@@ -137,6 +167,50 @@ export default function About() {
                 </div>
               ))}
             </div>
+
+            {/* Certificate carousel */}
+            <div className="mt-8 relative">
+              <div
+                ref={scrollerRef}
+                className="flex gap-4 overflow-x-auto snap-x snap-mandatory scroll-smooth pb-4"
+                style={{ scrollbarWidth: "thin" }}
+              >
+                {awardImages.map((img, i) => (
+                  <button
+                    key={img.src}
+                    onClick={() => setLightboxIdx(i)}
+                    className="snap-center shrink-0 relative group overflow-hidden border border-[#1a1a1a] hover:border-[#8B5CF6]/60 transition-colors bg-[#0a0a0a]"
+                    style={{ width: "clamp(220px, 32vw, 320px)", aspectRatio: "3/4" }}
+                  >
+                    <Image
+                      src={img.src}
+                      alt={img.title}
+                      fill
+                      sizes="320px"
+                      className="object-contain transition-transform duration-500 group-hover:scale-105"
+                      unoptimized
+                    />
+                    <div className="absolute top-2 left-2 bg-[#0a0a0a]/80 px-2 py-0.5 font-mono text-[9px] text-[#8B5CF6]">
+                      {String(i + 1).padStart(2, "0")}
+                    </div>
+                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/70 to-transparent p-3">
+                      <p className="text-[10px] text-[#ccc] leading-4">{img.title}</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+              {/* Nav arrows */}
+              <button
+                onClick={() => scrollBy(-1)}
+                className="hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 -translate-x-3 w-10 h-10 items-center justify-center bg-[#0a0a0a]/90 border border-[#2a2a2a] hover:border-[#8B5CF6] text-[#999] hover:text-white transition-colors"
+                aria-label="Previous"
+              >‹</button>
+              <button
+                onClick={() => scrollBy(1)}
+                className="hidden md:flex absolute right-0 top-1/2 -translate-y-1/2 translate-x-3 w-10 h-10 items-center justify-center bg-[#0a0a0a]/90 border border-[#2a2a2a] hover:border-[#8B5CF6] text-[#999] hover:text-white transition-colors"
+                aria-label="Next"
+              >›</button>
+            </div>
           </div>
 
           {/* CES */}
@@ -170,12 +244,10 @@ export default function About() {
             </h2>
             <div className="space-y-0">
               {[
-                "한국기초조형학회 교육분과 이사",
                 "한국디자인학회 기업분과 이사",
-                "한국디자인혁신협회 이사",
-                "산업통상자원부 AI 디자인 자문위원",
-                "NIA 범정부 UX/UI 혁신 자문위원",
-                "한국디자인진흥원 AI자격시험 자문위원",
+                "디자인융복합학회 교육분과 이사",
+                "한국디자인혁신협회 AI분과 이사",
+                "한국디자인리서치학회 이사",
               ].map((r, i) => (
                 <div key={i} className="flex items-center gap-3 py-2.5 border-b border-[#111]">
                   <span className="w-1.5 h-1.5 bg-[#38BDF8] rounded-full shrink-0" />
@@ -204,6 +276,48 @@ export default function About() {
 
         </div>
       </div>
+
+      {/* Lightbox modal */}
+      {lightboxIdx !== null && (
+        <div
+          className="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center p-4 md:p-12"
+          onClick={() => setLightboxIdx(null)}
+        >
+          <button
+            onClick={(e) => { e.stopPropagation(); setLightboxIdx(null); }}
+            className="absolute top-4 right-4 md:top-8 md:right-8 w-10 h-10 flex items-center justify-center text-white/70 hover:text-white text-2xl font-light"
+            aria-label="Close"
+          >×</button>
+          <button
+            onClick={(e) => { e.stopPropagation(); setLightboxIdx((i) => (i === null ? null : (i - 1 + awardImages.length) % awardImages.length)); }}
+            className="absolute left-2 md:left-8 top-1/2 -translate-y-1/2 w-12 h-12 flex items-center justify-center text-white/70 hover:text-white text-3xl font-light"
+            aria-label="Previous"
+          >‹</button>
+          <button
+            onClick={(e) => { e.stopPropagation(); setLightboxIdx((i) => (i === null ? null : (i + 1) % awardImages.length)); }}
+            className="absolute right-2 md:right-8 top-1/2 -translate-y-1/2 w-12 h-12 flex items-center justify-center text-white/70 hover:text-white text-3xl font-light"
+            aria-label="Next"
+          >›</button>
+          <div className="relative w-full h-full flex flex-col items-center justify-center" onClick={(e) => e.stopPropagation()}>
+            <div className="relative w-full h-[80vh] max-w-5xl">
+              <Image
+                src={awardImages[lightboxIdx].src}
+                alt={awardImages[lightboxIdx].title}
+                fill
+                sizes="100vw"
+                className="object-contain"
+                unoptimized
+              />
+            </div>
+            <div className="mt-4 text-center">
+              <p className="font-mono text-[10px] text-[#8B5CF6] mb-1">
+                {String(lightboxIdx + 1).padStart(2, "0")} / {String(awardImages.length).padStart(2, "0")}
+              </p>
+              <p className="text-sm text-white">{awardImages[lightboxIdx].title}</p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

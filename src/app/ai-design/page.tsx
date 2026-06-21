@@ -80,6 +80,36 @@ export default function AIDesign() {
               <div className="group relative overflow-hidden border border-[#1a1a1a] hover:border-[#8B5CF6]/40 transition-colors">
                 <div className="relative aspect-[3/4] w-full">
                   <Image
+                    src="/pptx/lecture_koses.jpg"
+                    alt="한국감성과학회 춘계학술대회 기조강연"
+                    fill
+                    className="object-cover object-center transition-transform duration-500 group-hover:scale-105"
+                  />
+                </div>
+                <div className="p-5">
+                  <p className="font-mono text-[9px] text-[#8B5CF6] mb-2">2026.06.19</p>
+                  <h3 className="text-sm text-white leading-6 mb-1">한국감성과학회 춘계학술대회 기조강연</h3>
+                  <p className="text-xs text-[#666] leading-6">주제: AI 시대의 감성 디렉팅</p>
+                </div>
+              </div>
+              <div className="group relative overflow-hidden border border-[#1a1a1a] hover:border-[#8B5CF6]/40 transition-colors">
+                <div className="relative aspect-[3/4] w-full">
+                  <Image
+                    src="/pptx/lecture_fdf.jpg"
+                    alt="Future Design Forum 2026"
+                    fill
+                    className="object-cover object-center transition-transform duration-500 group-hover:scale-105"
+                  />
+                </div>
+                <div className="p-5">
+                  <p className="font-mono text-[9px] text-[#8B5CF6] mb-2">2026</p>
+                  <h3 className="text-sm text-white leading-6 mb-1">Future Design Forum</h3>
+                  <p className="text-xs text-[#666] leading-6">주제: MZ디자이너, AI를 이렇게 활용한다</p>
+                </div>
+              </div>
+              <div className="group relative overflow-hidden border border-[#1a1a1a] hover:border-[#8B5CF6]/40 transition-colors">
+                <div className="relative aspect-[3/4] w-full">
+                  <Image
                     src="/pptx/lecture_busan.jpg"
                     alt="부산관광 미래포럼"
                     fill
