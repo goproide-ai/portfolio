@@ -7,11 +7,14 @@ import { useState, useRef, useEffect } from "react";
 
 const awardImages = [
   { src: "/awards/1.png", title: "대한민국디자인전람회 대통령상 (Grand Prize)" },
+  { src: "/awards/7.jpg", title: "국립중앙과학관 공로상" },
   { src: "/awards/2.jpg", title: "Red Dot Design Award, Winner 2025" },
   { src: "/awards/3.png", title: "Asia Design Prize 2026, Winner" },
   { src: "/awards/4.png", title: "K-Design Award 2025, Gold Winner" },
   { src: "/awards/5.png", title: "부산국제디자인어워드 Silver" },
   { src: "/awards/6.png", title: "대전디자인어워드 금상" },
+  { src: "/awards/8.jpg", title: "삼성전자 Best Design Awards 대상" },
+  { src: "/awards/9.jpg", title: "삼성전자 대토론회 Excellent Idea" },
 ];
 
 export default function About() {
