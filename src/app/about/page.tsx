@@ -175,7 +175,7 @@ export default function About() {
             <div className="mt-8 relative">
               <div
                 ref={scrollerRef}
-                className={`flex items-stretch gap-4 overflow-x-auto snap-x snap-mandatory scroll-smooth pb-4 ${isWhite ? "scrollbar-light" : "scrollbar-dark"}`}
+                className={`flex items-stretch gap-2 overflow-x-auto snap-x snap-mandatory scroll-smooth pb-4 ${isWhite ? "scrollbar-light" : "scrollbar-dark"}`}
               >
                 {awardImages.map((img, i) => (
                   <button
@@ -264,11 +264,11 @@ export default function About() {
             </h2>
             <div className="grid grid-cols-2 gap-4">
               <div className="p-6 border border-[#1a1a1a]">
-                <p className="text-4xl font-light text-white mb-3">10</p>
+                <p className="text-4xl font-light text-white mb-3">11</p>
                 <p className="text-xs text-[#666] leading-7">기술 특허 — 롤러블폰, 가전제품 등 대표 발명자</p>
               </div>
               <div className="p-6 border border-[#1a1a1a]">
-                <p className="text-4xl font-light text-white mb-3">15</p>
+                <p className="text-4xl font-light text-white mb-3">14</p>
                 <p className="text-xs text-[#666] leading-7">디자인권 — 자동차 디자인 2건 등 대표 창작자</p>
               </div>
             </div>
