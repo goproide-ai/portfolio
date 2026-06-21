@@ -243,16 +243,6 @@ export default function Contact() {
           &copy; 2025 Sungchan Ko. All rights reserved.
         </p>
 
-        {/* WDC Banner */}
-        <button onClick={() => setShowEvent(true)} className="mt-12 overflow-hidden rounded-lg w-full hover:opacity-90 transition-opacity">
-          <Image
-            src="/pptx/wdc_banner.jpg"
-            alt="World Design Capital Busan 2028"
-            width={1200}
-            height={400}
-            className="w-full h-auto"
-          />
-        </button>
       </div>
     </div>
   );
