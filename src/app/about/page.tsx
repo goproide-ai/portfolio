@@ -97,12 +97,12 @@ export default function About() {
             </h2>
             <div className="space-y-5">
               <div>
-                <p className="text-sm text-white">홍익대학교 IDAS</p>
-                <p className="text-xs text-[#666] mt-1 leading-6">스마트디자인엔지니어링 디자인석사</p>
-              </div>
-              <div>
                 <p className="text-sm text-white">국민대학교</p>
                 <p className="text-xs text-[#666] mt-1 leading-6">기계자동차공학 공학사</p>
+              </div>
+              <div>
+                <p className="text-sm text-white">홍익대학교</p>
+                <p className="text-xs text-[#666] mt-1 leading-6">스마트디자인엔지니어링 디자인석사</p>
               </div>
             </div>
           </div>
@@ -114,12 +114,12 @@ export default function About() {
             </h2>
             <div className="space-y-5">
               <div>
-                <p className="text-sm text-white">서울과학기술대학교</p>
+                <p className="text-sm text-white">서울과학기술대학교 (2026-)</p>
                 <p className="text-xs text-[#666] mt-1 leading-6">산업디자인학과 조교수</p>
               </div>
               <div>
                 <p className="text-sm text-white">삼성전자 삼성리서치 (2010-2026)</p>
-                <p className="text-xs text-[#666] mt-1 leading-6">Industrial / UX Designer · UXIL</p>
+                <p className="text-xs text-[#666] mt-1 leading-6">UXIL 제품 디자이너</p>
               </div>
             </div>
           </div>
@@ -131,9 +131,8 @@ export default function About() {
             </h2>
             <div className="flex flex-wrap gap-2">
               {[
-                "Industrial Design","Design Engineering","Mechanical Design",
-                "UX Design","Exhibition Design","Character Design","AI Design",
-                "Automotive Design","Robotics Design",
+                "Product Design","Design Engineering","UX Design",
+                "Exhibition Design","AI Design",
               ].map((s) => (
                 <span
                   key={s}
@@ -152,17 +151,14 @@ export default function About() {
             </h2>
             <div className="space-y-0">
               {[
-                { year: "2025", title: "대한민국디자인전람회 대통령상 (Grand Prize)" },
+                { year: "2025", title: "대한민국디자인전람회 대통령상" },
                 { year: "2025", title: "국립중앙과학관 공로상" },
-                { year: "2025", title: "Red Dot Design Award, Winner" },
+                { year: "2025", title: "Red Dot Design Award, Red Dot" },
+                { year: "2025", title: "삼성전자 대토론회 우수상" },
                 { year: "2025", title: "대전디자인어워드 금상" },
                 { year: "2025", title: "부산국제디자인어워드 은상" },
-                { year: "2024", title: "삼성전자 베스트디자인어워즈 대상" },
-                { year: "2021", title: "IDEA Finalist" },
-                { year: "2025", title: "삼성전자 대토론회 우수상" },
-                { year: "2020", title: "iF Design Award, Winner" },
-                { year: "2020", title: "Red Dot Design Award, Winner" },
-                { year: "2020", title: "삼성전자 대토론회 최우수상" },
+                { year: "2024", title: "삼성전자 Best Design Awards, Experience 부문 대상" },
+                { year: "2023", title: "삼성전자 대토론회 장려상" },
               ].map((a, i) => (
                 <div key={i} className="flex items-baseline gap-5 py-2.5 border-b border-[#111]">
                   <span className="font-mono text-[10px] text-[#555] w-10 shrink-0">{a.year}</span>
@@ -246,7 +242,7 @@ export default function About() {
               {[
                 "한국디자인학회 기업분과 이사",
                 "디자인융복합학회 교육분과 이사",
-                "한국디자인혁신협회 AI분과 이사",
+                "한국디자인혁신협회 AI 분과위원장",
                 "한국디자인리서치학회 이사",
               ].map((r, i) => (
                 <div key={i} className="flex items-center gap-3 py-2.5 border-b border-[#111]">
@@ -258,19 +254,70 @@ export default function About() {
           </div>
 
           {/* Patents */}
-          <div className="pb-16">
+          <div>
             <h2 className="font-mono text-[10px] tracking-[0.35em] text-[#8B5CF6] uppercase mb-5 pb-2 border-b border-[#1a1a1a]">
               Patents &amp; Design Rights
             </h2>
             <div className="grid grid-cols-2 gap-4">
               <div className="p-6 border border-[#1a1a1a]">
                 <p className="text-4xl font-light text-white mb-3">11</p>
-                <p className="text-xs text-[#666] leading-7">기술 특허 — 롤러블폰, 가전제품 등 대표 발명자</p>
+                <p className="text-xs text-[#666] leading-7">기술 특허 — 롤러블폰 상품화 구조, 조리기기 등 대표 발의</p>
               </div>
               <div className="p-6 border border-[#1a1a1a]">
                 <p className="text-4xl font-light text-white mb-3">14</p>
-                <p className="text-xs text-[#666] leading-7">디자인권 — 자동차 디자인 2건 등 대표 창작자</p>
+                <p className="text-xs text-[#666] leading-7">디자인권 — 자동차 디자인 2건 등 대표 창작자 등록</p>
               </div>
+            </div>
+          </div>
+
+          {/* Professional Service */}
+          <div>
+            <h2 className="font-mono text-[10px] tracking-[0.35em] text-[#38BDF8] uppercase mb-5 pb-2 border-b border-[#1a1a1a]">
+              Professional Service
+            </h2>
+            <div className="space-y-0">
+              {[
+                { year: "2026-2025", title: "Future Design Forum 강연" },
+                { year: "2026", title: "한국감성과학회 춘계국제학술대회 기조강연" },
+                { year: "2025", title: "서울대, KAIST, 홍익대, 국민대, 건국대, 한예종, KDM+ 등 AI Workshop 진행" },
+                { year: "2025", title: "한국기초조형학회 춘계국제학술대회 기조 강연" },
+                { year: "2024", title: "삼성전자 전사 디자이너 대상 AI 특별 강연" },
+                { year: "2024", title: "디자인융복합학회 가을 국제학술대회 주제 강연" },
+                { year: "2024", title: "서울디자인재단 디자인리더 네트워크, 4인의 디자인리더 제품&AI 부문 대표 발제" },
+                { year: "2024", title: "DDP 디자인론칭페어 멘토링, 특별 강연" },
+              ].map((a, i) => (
+                <div key={i} className="flex items-baseline gap-5 py-2.5 border-b border-[#111]">
+                  <span className="font-mono text-[10px] text-[#555] w-16 shrink-0">{a.year}</span>
+                  <p className="text-sm text-[#ccc] leading-6">{a.title}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Jury & Mentoring */}
+          <div className="pb-16">
+            <h2 className="font-mono text-[10px] tracking-[0.35em] text-[#8B5CF6] uppercase mb-5 pb-2 border-b border-[#1a1a1a]">
+              Jury &amp; Mentoring Experience
+            </h2>
+            <div className="space-y-0">
+              {[
+                { year: "2026", title: "행정안전부 범정부 UX/UI 혁신단 자문위원" },
+                { year: "2026", title: "서울시 서초구 공공디자인 자문위원" },
+                { year: "2025", title: "산업통상부 산업기술기획평가원 기획위원" },
+                { year: "2026", title: "광주 코리아디자인멤버십+ 7기 신입 선발 심사위원" },
+                { year: "2025", title: "서울·인천 코리아디자인멤버십+ 6기 신입 선발 심사위원" },
+                { year: "2025-2023", title: "삼성디자인멤버십 Intensive course 제품디자인 튜터" },
+                { year: "2025-2023", title: "삼성디자인멤버십 M.E.P 제품디자인 멘토" },
+                { year: "2024", title: "삼성디자인멤버십 33기 신입 채용 심사위원" },
+                { year: "2024", title: "삼성전자 하반기 디자인 신입 채용 심사위원" },
+                { year: "2024", title: "DDP 디자인론칭페어 베스트디자인 제품디자인 심사위원" },
+                { year: "2024", title: "서울특별시 중소기업산업디자인개발지원사업 제품디자인 심사위원" },
+              ].map((a, i) => (
+                <div key={i} className="flex items-baseline gap-5 py-2.5 border-b border-[#111]">
+                  <span className="font-mono text-[10px] text-[#555] w-16 shrink-0">{a.year}</span>
+                  <p className="text-sm text-[#ccc] leading-6">{a.title}</p>
+                </div>
+              ))}
             </div>
           </div>
 
