@@ -2,12 +2,15 @@ name: korail-auto-booking release
 
 # Builds installers for Windows, macOS and Linux and attaches them to a GitHub Release.
 #
-# Two ways to trigger:
+# Three ways to run:
 #   1. Push a tag:            git tag korail-v0.1.0 && git push origin korail-v0.1.0
 #   2. Run workflow manually: pick the branch to build and enter the tag to create (korail-vX.Y.Z);
 #      the tag is created from that branch's head when the draft release is published.
-# In both cases the tag must match korail-auto-booking/package.json "version" (korail-v<version>).
-# The release is created as a DRAFT so it can be reviewed before it goes public.
+#   3. Pull requests that touch the app: builds the installers and uploads them as workflow
+#      artifacts only (no tag check, no release), so packaging on all three OSes is verified
+#      before a tag is ever pushed.
+# For 1 and 2 the tag must match korail-auto-booking/package.json "version" (korail-v<version>),
+# and the release is created as a DRAFT so it can be reviewed before it goes public.
 on:
   push:
     tags: ['korail-v*']
@@ -17,6 +20,10 @@ on:
         description: 'Tag to release, e.g. korail-v0.1.0 (created from the selected branch if it does not exist)'
         required: true
         type: string
+  pull_request:
+    paths:
+      - 'korail-auto-booking/**'
+      - '.github/workflows/korail-release.yml'
 
 # Least privilege: the build jobs run third-party install scripts and download packaging tools,
 # so they get a read-only token. Only the release job may write (create the draft release).
@@ -24,8 +31,10 @@ permissions:
   contents: read
 
 concurrency:
+  # Tag/dispatch runs are keyed by tag and never cancelled; PR verification builds are keyed by
+  # the PR ref and superseded by the next push.
   group: korail-release-${{ github.event.inputs.tag || github.ref_name }}
-  cancel-in-progress: false
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   build:
@@ -51,6 +60,7 @@ jobs:
     steps:
       - name: Validate release tag
         # Runs before checkout so a bad tag / dispatch input fails in seconds, not after three builds.
+        if: github.event_name != 'pull_request'
         shell: bash
         working-directory: ${{ github.workspace }}
         env:
@@ -74,6 +84,7 @@ jobs:
           cache-dependency-path: korail-auto-booking/package-lock.json
 
       - name: Verify tag matches package.json version
+        if: github.event_name != 'pull_request'
         shell: bash
         env:
           TAG: ${{ github.event.inputs.tag || github.ref_name }}
@@ -127,10 +138,12 @@ jobs:
             korail-auto-booking/release/*.zip
             korail-auto-booking/release/*.AppImage
           if-no-files-found: error
-          retention-days: 30
+          retention-days: ${{ github.event_name == 'pull_request' && 7 || 30 }}
 
   release:
     name: draft GitHub release
+    # PR runs only verify packaging; a release needs a tag (pushed or entered in Run workflow).
+    if: github.event_name != 'pull_request'
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 15
