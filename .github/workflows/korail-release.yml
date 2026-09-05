@@ -8,7 +8,7 @@ name: korail-auto-booking release
 #      the tag is created from that branch's head when the draft release is published.
 #   3. Pull requests that touch the app: builds the installers and uploads them as workflow
 #      artifacts only (no tag check, no release), so packaging on all three OSes is verified
-#      before a tag is ever pushed.
+#      before a tag is ever pushed; a PR comment links the artifacts of the latest build.
 # For 1 and 2 the tag must match korail-auto-booking/package.json "version" (korail-v<version>),
 # and the release is created as a DRAFT so it can be reviewed before it goes public.
 on:
@@ -139,6 +139,49 @@ jobs:
             korail-auto-booking/release/*.AppImage
           if-no-files-found: error
           retention-days: ${{ github.event_name == 'pull_request' && 7 || 30 }}
+
+  pr-links:
+    name: link installers on the PR
+    # Same-repo PRs only: fork PRs get a read-only token and could not post anyway.
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Post or update the installer links comment
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          marker='<!-- korail-installers -->'
+          links="$(gh api "repos/$GH_REPO/actions/runs/$RUN_ID/artifacts" \
+            --jq '.artifacts[] | select(.name | startswith("installers-")) | "- [\(.name)](" + env.RUN_URL + "/artifacts/\(.id)) — \((.size_in_bytes / 1048576) | floor) MB"')"
+          body="$(printf '%s\n' \
+            "$marker" \
+            "### 설치 파일 (커밋 ${HEAD_SHA:0:7})" \
+            "" \
+            "이 PR의 최신 빌드에서 만든 Windows·macOS·Linux 설치 파일입니다. 내려받아 압축을 풀고 실행하세요 (GitHub 로그인 필요, 7일 보관)." \
+            "" \
+            "$links" \
+            "" \
+            "실행 방법과 첫 실행 시 운영체제 경고 처리는 [README](https://github.com/$GH_REPO/blob/$HEAD_SHA/korail-auto-booking/README.md#다운로드--설치)를 참고하세요. 정식 배포는 \`korail-v*\` 태그를 푸시하거나 머지 후 Run workflow로 초안 릴리스를 만듭니다." \
+            "" \
+            "_[workflow run]($RUN_URL)_")"
+          existing="$(gh api "repos/$GH_REPO/issues/$PR_NUMBER/comments" --paginate \
+            --jq "map(select(.body | startswith(\"$marker\"))) | .[0].id // empty" | head -n1)"
+          if [ -n "$existing" ]; then
+            gh api -X PATCH "repos/$GH_REPO/issues/comments/$existing" -f body="$body" --silent
+            echo "updated comment $existing"
+          else
+            gh api "repos/$GH_REPO/issues/$PR_NUMBER/comments" -f body="$body" --silent
+            echo "posted new comment"
+          fi
 
   release:
     name: draft GitHub release
