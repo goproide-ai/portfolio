@@ -1,0 +1,33 @@
+appId: dev.goproide.korail-auto-booking
+productName: Korail Auto Booking
+copyright: Copyright © 2026 goproide
+directories:
+  output: release
+  buildResources: resources
+files:
+  - out/**
+  - package.json
+  - '!**/*.map'
+asar: true
+win:
+  target:
+    - nsis
+    - portable
+  artifactName: ${productName}-${version}-win-${arch}.${ext}
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  shortcutName: 코레일 자동예매
+mac:
+  target:
+    - dmg
+    - zip
+  category: public.app-category.travel
+  artifactName: ${productName}-${version}-mac-${arch}.${ext}
+linux:
+  target:
+    - AppImage
+  category: Utility
+  artifactName: ${productName}-${version}-linux-${arch}.${ext}
+publish: null
