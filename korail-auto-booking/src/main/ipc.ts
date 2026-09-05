@@ -51,8 +51,16 @@ export function registerIpc(ctx: IpcContext): void {
     const password = String(payload?.password ?? '')
     if (!id || !password) throw new Error('아이디와 비밀번호를 입력하세요.')
     const result = await doLogin(id, password)
+    // The Korail login already succeeded above; remembering the password is a convenience and must
+    // never turn that success into a failure.
     if (payload.remember) {
-      if (!credentials.save({ id, password })) {
+      let saved = false
+      try {
+        saved = credentials.save({ id, password })
+      } catch (e) {
+        console.warn(`[credentials] 저장 실패: ${describeError(e)}`)
+      }
+      if (!saved) {
         result.message = '이 환경에서는 안전한 저장소를 사용할 수 없어 로그인 정보를 저장하지 않았습니다.'
       }
     } else {
@@ -63,7 +71,15 @@ export function registerIpc(ctx: IpcContext): void {
 
   handle('auth:loginWithSaved', async () => {
     const saved = credentials.load()
-    if (!saved) throw new Error('저장된 로그인 정보가 없습니다.')
+    if (!saved) {
+      if (credentials.peekId()) {
+        // The file exists but cannot be decrypted (portable exe moved to another PC, new user profile,
+        // changed keyring): drop it so the UI stops offering it.
+        credentials.clear()
+        throw new Error('저장된 로그인 정보를 읽을 수 없어 삭제했습니다. 비밀번호를 다시 입력해 로그인하세요.')
+      }
+      throw new Error('저장된 로그인 정보가 없습니다.')
+    }
     return doLogin(saved.id, saved.password)
   })
 

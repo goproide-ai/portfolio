@@ -56,7 +56,7 @@ jobs:
             args: --mac dmg zip --x64 --arm64
           - name: linux
             os: ubuntu-latest
-            args: --linux AppImage --x64
+            args: --linux AppImage deb --x64
     steps:
       - name: Validate release tag
         # Runs before checkout so a bad tag / dispatch input fails in seconds, not after three builds.
@@ -137,6 +137,7 @@ jobs:
             korail-auto-booking/release/*.dmg
             korail-auto-booking/release/*.zip
             korail-auto-booking/release/*.AppImage
+            korail-auto-booking/release/*.deb
           if-no-files-found: error
           retention-days: ${{ github.event_name == 'pull_request' && 7 || 30 }}
 
@@ -232,7 +233,7 @@ jobs:
             **설치 파일**
             - Windows: `*-win-x64.exe` (설치본) / `*-win-x64-portable.exe` (무설치) — SmartScreen 경고가 뜨면 "추가 정보 → 실행"
             - macOS: `*-mac-arm64.dmg` (Apple Silicon) / `*-mac-x64.dmg` (Intel) — 서명되지 않은 앱이므로 처음 실행 전 터미널에서 `xattr -cr "/Applications/Korail Auto Booking.app"` 실행
-            - Linux: `*-linux-x86_64.AppImage` — `chmod +x` 후 실행
+            - Linux: `*-linux-amd64.deb` (Ubuntu/Debian 권장, `sudo apt install ./파일.deb`) / `*-linux-x86_64.AppImage` (`chmod +x` 후 실행, Ubuntu 22.04+는 `libfuse2` 필요)
 
             결제는 이 앱이 하지 않습니다. 예약 후 결제기한 안에 코레일+ 앱에서 직접 결제하세요.
             코레일 매크로 방지 정책에 유의해 조회 간격을 넉넉히 두고 사용하세요.

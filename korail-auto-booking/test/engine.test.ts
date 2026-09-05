@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { BookingEngine, ConfigError, kstToday, validateConfig } from '../src/main/booking/engine'
-import { DynaPathError, NeedToLoginError, NetworkError, SoldOutError } from '../src/main/korail/errors'
+import { BookingEngine, ConfigError, MAX_ERROR_BACKOFF_MS, MAX_RELOGINS_PER_WINDOW, kstToday, validateConfig } from '../src/main/booking/engine'
+import { AppVersionError, DynaPathError, NeedToLoginError, NetworkError, SoldOutError } from '../src/main/korail/errors'
 import type { KorailClient } from '../src/main/korail/client'
 import type { BookingConfig, LogEntry, Reservation, Train } from '../src/shared/types'
 
@@ -291,12 +291,121 @@ describe('BookingEngine', () => {
     const { engine } = makeEngine(client, relogin)
     engine.start(baseConfig({ maxAttempts: 40, intervalMs: 1000 }))
     await vi.advanceTimersByTimeAsync(0)
-    for (let i = 0; i < 35; i++) await vi.advanceTimersByTimeAsync(1000)
-    // Still running, never stopped with the consecutive-error message despite 35 session expiries.
+    for (let i = 0; i < 4; i++) await vi.advanceTimersByTimeAsync(1000)
+    // Five expiries so far: still running, never stopped with the consecutive-error message.
     expect(engine.getState().status).toBe('running')
     expect(String(engine.getState().error ?? '')).not.toMatch(/연속 발생/)
-    expect(relogin).toHaveBeenCalled()
+    expect(relogin).toHaveBeenCalledTimes(5)
     engine.stop()
+  })
+
+  it('stops when the session keeps expiring (re-login storm) instead of hammering the login endpoint', async () => {
+    const client = fakeClient()
+    client.searchWindow.mockRejectedValue(new NeedToLoginError())
+    const relogin = vi.fn().mockResolvedValue(true)
+    const { engine } = makeEngine(client, relogin)
+    engine.start(baseConfig({ maxAttempts: 40, intervalMs: 1000 }))
+    await vi.advanceTimersByTimeAsync(0)
+    for (let i = 0; i < 12; i++) await vi.advanceTimersByTimeAsync(1000)
+    await engine.whenDone()
+    expect(engine.getState().status).toBe('error')
+    expect(engine.getState().error).toMatch(/만료/)
+    expect(relogin.mock.calls.length).toBeLessThanOrEqual(MAX_RELOGINS_PER_WINDOW)
+  })
+
+  it('retries a re-login that failed on the network instead of ending the run', async () => {
+    const client = fakeClient()
+    client.searchWindow
+      .mockRejectedValueOnce(new NeedToLoginError())
+      .mockRejectedValueOnce(new NeedToLoginError())
+      .mockResolvedValue([train('001', '080000', true)])
+    client.reserve.mockResolvedValue({ pnrNo: 'P', seatClass: '1', waiting: false, reservation: null })
+    const relogin = vi.fn().mockRejectedValueOnce(new NetworkError('offline')).mockResolvedValue(true)
+    const { engine, logs } = makeEngine(client, relogin)
+    engine.start(baseConfig({ intervalMs: 1000 }))
+    await vi.advanceTimersByTimeAsync(0)
+    expect(engine.getState().status).toBe('running')
+    expect(logs.some((l) => l.message.includes('재로그인 중 네트워크 오류'))).toBe(true)
+    await vi.advanceTimersByTimeAsync(1000) // second expiry, re-login succeeds
+    await vi.advanceTimersByTimeAsync(1000) // search works, reserve succeeds
+    await engine.whenDone()
+    expect(relogin).toHaveBeenCalledTimes(2)
+    expect(engine.getState().status).toBe('success')
+  })
+
+  it('backs off exponentially on repeated network failures, capped, and keeps the run alive', async () => {
+    const client = fakeClient()
+    client.searchWindow.mockRejectedValue(new NetworkError('down'))
+    const { engine } = makeEngine(client)
+    engine.start(baseConfig({ intervalMs: 2000, jitterMs: 0 }))
+    await vi.advanceTimersByTimeAsync(0)
+    for (let k = 1; k <= 8; k++) {
+      const expected = Math.min(MAX_ERROR_BACKOFF_MS, 2000 * 2 ** (k - 1))
+      const delay = (engine.getState().nextCheckAt ?? 0) - Date.now()
+      expect(delay).toBe(expected)
+      await vi.advanceTimersByTimeAsync(delay)
+    }
+    expect(engine.getState().status).toBe('running')
+    engine.stop()
+  })
+
+  it('never books again while a lost reserve could not be verified', async () => {
+    const client = fakeClient()
+    client.searchWindow.mockResolvedValue([train('001', '080000', true)])
+    client.reserve.mockRejectedValueOnce(new NetworkError('timeout')).mockResolvedValue({ pnrNo: 'P2', seatClass: '1', waiting: false, reservation: null })
+    client.reservations
+      .mockRejectedValueOnce(new NetworkError('timeout')) // lookup right after the lost reserve fails too
+      .mockRejectedValueOnce(new NetworkError('timeout')) // next round: still cannot verify → no new booking
+      .mockResolvedValueOnce([{ ...reservation, trainNo: '001', depCode: '0001', arrCode: '0020', runDate: '20260910' }])
+    const { engine } = makeEngine(client)
+    engine.start(baseConfig({ intervalMs: 1000, jitterMs: 0 }))
+    await vi.advanceTimersByTimeAsync(0)
+    expect(client.reserve).toHaveBeenCalledTimes(1)
+    expect(engine.getState().status).toBe('running')
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(client.reserve).toHaveBeenCalledTimes(1)
+    expect(client.searchWindow).toHaveBeenCalledTimes(1) // no search either: verification comes first
+    await vi.advanceTimersByTimeAsync(2000)
+    await engine.whenDone()
+    expect(client.reserve).toHaveBeenCalledTimes(1)
+    expect(engine.getState().status).toBe('success')
+    expect(engine.getState().reservation?.rsvId).toBe('PNR1')
+  })
+
+  it('narrows the polling window to the selected trains after the first round', async () => {
+    const client = fakeClient()
+    client.searchWindow.mockResolvedValue([train('001', '080000', false), train('002', '090000', false), train('003', '093000', false)])
+    const { engine, logs } = makeEngine(client)
+    engine.start(baseConfig({ timeFrom: '08:00', timeTo: '10:00', targetTrainKeys: ['20260910-002-0001-0020', '20260910-003-0001-0020'], intervalMs: 1000 }))
+    await vi.advanceTimersByTimeAsync(0)
+    expect(client.searchWindow.mock.calls[0][0]).toMatchObject({ timeFrom: '0800', timeTo: '1000' })
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(client.searchWindow.mock.calls[1][0]).toMatchObject({ timeFrom: '0900', timeTo: '0930' })
+    expect(logs.some((l) => l.message.includes('조회 범위'))).toBe(true)
+    engine.stop()
+  })
+
+  it('keeps the full window when no specific trains were selected', async () => {
+    const client = fakeClient()
+    client.searchWindow.mockResolvedValue([train('001', '080000', false)])
+    const { engine } = makeEngine(client)
+    engine.start(baseConfig({ intervalMs: 1000 }))
+    await vi.advanceTimersByTimeAsync(0)
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(client.searchWindow.mock.calls[1][0]).toMatchObject({ timeFrom: '0800', timeTo: '1000' })
+    engine.stop()
+  })
+
+  it('stops with a clear message when Korail demands an app update', async () => {
+    const client = fakeClient()
+    client.searchWindow.mockRejectedValue(new AppVersionError())
+    const { engine } = makeEngine(client)
+    engine.start(baseConfig())
+    await vi.advanceTimersByTimeAsync(0)
+    await engine.whenDone()
+    expect(engine.getState().status).toBe('error')
+    expect(engine.getState().error).toMatch(/업데이트/)
+    expect(client.searchWindow).toHaveBeenCalledTimes(1)
   })
 
   it('does not commit a reservation into a run that was stopped mid-reserve', async () => {

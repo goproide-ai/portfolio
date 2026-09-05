@@ -1,7 +1,7 @@
 import { EventEmitter } from 'node:events'
 import type { BookingConfig, BookingState, LogEntry, LogLevel, Reservation, Train } from '../../shared/types'
 import type { KorailClient } from '../korail/client'
-import { DynaPathError, KorailError, NeedToLoginError, NetworkError, NoResultsError, SoldOutError, describeError } from '../korail/errors'
+import { AppVersionError, DynaPathError, KorailError, NeedToLoginError, NetworkError, NoResultsError, SoldOutError, describeError } from '../korail/errors'
 import { normalizePassengers, totalPassengers } from '../korail/passengers'
 import { describeTrain, selectCandidates, selectTargets, windowBounds } from './matcher'
 
@@ -22,6 +22,11 @@ export const DEFAULT_INTERVAL_MS = 4_000
 export const DEFAULT_JITTER_MS = 1_500
 /** Give up after this many consecutive failed polling rounds. */
 export const MAX_CONSECUTIVE_ERRORS = 30
+/** Network failures back off exponentially from the polling interval up to this delay. */
+export const MAX_ERROR_BACKOFF_MS = 60_000
+/** More than this many session expiries inside RELOGIN_WINDOW_MS means Korail keeps dropping the session: stop. */
+export const MAX_RELOGINS_PER_WINDOW = 6
+export const RELOGIN_WINDOW_MS = 10 * 60_000
 
 export interface BookingEngineEvents {
   log: [LogEntry]
@@ -111,6 +116,11 @@ export class BookingEngine extends EventEmitter<BookingEngineEvents> {
   private abort: AbortController | null = null
   private loopPromise: Promise<void> | null = null
   private config: BookingConfig | null = null
+  /** A reserve() whose answer was lost; must be looked up before any further reservation attempt. */
+  private unconfirmed: Train | null = null
+  private reloginTimes: number[] = []
+  /** Once the target trains are known, polling is narrowed to their departure span. */
+  private span: { timeFrom: string; timeTo: string } | null = null
 
   constructor(deps: EngineDeps) {
     super()
@@ -140,6 +150,9 @@ export class BookingEngine extends EventEmitter<BookingEngineEvents> {
     const config = validateConfig(input)
     this.config = config
     this.abort = new AbortController()
+    this.unconfirmed = null
+    this.reloginTimes = []
+    this.span = null
     this.state = { ...initialState(), status: 'running', startedAt: this.deps.now() }
     const { from, to } = windowBounds(config.timeFrom, config.timeTo)
     this.log(
@@ -173,6 +186,7 @@ export class BookingEngine extends EventEmitter<BookingEngineEvents> {
 
   private async loop(config: BookingConfig, signal: AbortSignal): Promise<void> {
     let consecutiveErrors = 0
+    let backoffMs = 0
     while (!signal.aborted) {
       if (config.maxAttempts > 0 && this.state.attempts >= config.maxAttempts) {
         this.finish('stopped', `최대 시도 횟수(${config.maxAttempts}회)에 도달하여 중지했습니다.`)
@@ -183,12 +197,26 @@ export class BookingEngine extends EventEmitter<BookingEngineEvents> {
       this.emitState()
 
       try {
+        // A reserve() call whose response was lost may have succeeded on the server. Never book
+        // again until that is settled, or a flaky network turns into two reservations.
+        if (this.unconfirmed) {
+          const pending = this.unconfirmed
+          const match = await this.lookupReservation(pending)
+          if (signal.aborted) return
+          this.unconfirmed = null
+          if (match) {
+            this.commitReservation(pending, match, match.waiting, '네트워크 오류 후 예약 확인됨')
+            return
+          }
+          this.log('info', `${describeTrain(pending)} 예약은 서버에 남아 있지 않습니다. 계속 진행합니다.`)
+        }
+
         const trains = await this.deps.client.searchWindow({
           dep: config.dep,
           arr: config.arr,
           date: config.date,
-          timeFrom: config.timeFrom,
-          timeTo: config.timeTo,
+          timeFrom: this.span?.timeFrom ?? config.timeFrom,
+          timeTo: this.span?.timeTo ?? config.timeTo,
           passengers: config.passengers,
           shouldContinue: () => !signal.aborted,
         })
@@ -196,6 +224,7 @@ export class BookingEngine extends EventEmitter<BookingEngineEvents> {
         this.state.trains = trains
         this.state.lastCheckedAt = this.deps.now()
         consecutiveErrors = 0
+        backoffMs = 0
 
         const targets = selectTargets(trains, config)
         const candidates = selectCandidates(trains, config)
@@ -205,6 +234,15 @@ export class BookingEngine extends EventEmitter<BookingEngineEvents> {
         )
         if (targets.length === 0 && this.state.attempts === 1) {
           this.log('warn', '조건에 맞는 열차가 없습니다. 날짜/시간대/열차 종류를 확인하세요. 계속 재조회합니다.')
+        }
+        // Specific trains were picked: from now on only page the part of the window they occupy,
+        // which keeps the request count per poll (and the macro-detection exposure) minimal.
+        if (!this.span && config.targetTrainKeys.length > 0 && targets.length > 0) {
+          const times = targets.map((t) => t.depTime.slice(0, 4)).sort()
+          this.span = { timeFrom: times[0], timeTo: times[times.length - 1] }
+          if (this.span.timeFrom !== config.timeFrom || this.span.timeTo !== config.timeTo) {
+            this.log('info', `지정 열차 기준으로 조회 범위를 ${fmtHm(this.span.timeFrom)}~${fmtHm(this.span.timeTo)}로 좁힙니다.`)
+          }
         }
 
         for (const train of candidates) {
@@ -226,15 +264,27 @@ export class BookingEngine extends EventEmitter<BookingEngineEvents> {
               this.finish('error', MACRO_BLOCK_MESSAGE)
               return
             }
+            if (e instanceof AppVersionError) {
+              this.finish('error', describeError(e))
+              return
+            }
             if (e instanceof NeedToLoginError) {
-              const ok = await this.tryRelogin()
-              if (!ok) return
+              const outcome = await this.tryRelogin()
+              if (outcome === 'fatal') return
               break
             }
             if (e instanceof NetworkError) {
               // reserve() may have committed the seat before the response was lost; reconcile
               // against existing reservations to avoid double-booking on the next poll.
-              const match = await this.findExistingReservation(train)
+              let match: Reservation | null
+              try {
+                match = await this.lookupReservation(train)
+              } catch (lookupError) {
+                if (signal.aborted) return
+                this.unconfirmed = train
+                this.log('warn', `예약 결과를 확인하지 못했습니다 (${describeError(lookupError)}). 다음 조회 전에 다시 확인합니다.`)
+                throw e
+              }
               if (signal.aborted) return
               if (match) {
                 this.commitReservation(train, match, match.waiting, '네트워크 오류 후 예약 확인됨')
@@ -257,31 +307,44 @@ export class BookingEngine extends EventEmitter<BookingEngineEvents> {
           this.finish('error', MACRO_BLOCK_MESSAGE)
           return
         }
+        if (e instanceof AppVersionError) {
+          this.finish('error', describeError(e))
+          return
+        }
         consecutiveErrors += 1
+        backoffMs = 0
         if (e instanceof NeedToLoginError) {
-          const ok = await this.tryRelogin()
-          if (!ok) return
-          consecutiveErrors = 0
+          const outcome = await this.tryRelogin()
+          if (outcome === 'fatal') return
+          if (outcome === 'ok') consecutiveErrors = 0
+          else backoffMs = this.backoff(config, consecutiveErrors)
         } else if (e instanceof NoResultsError) {
-          this.log('info', `#${this.state.attempts} 조회 — 결과 없음`)
+          this.log('info', `#${this.state.attempts} 조회 — 결과 없음 (${e.message})`)
           consecutiveErrors = 0
         } else if (e instanceof NetworkError) {
-          this.log('warn', `네트워크 오류 (${consecutiveErrors}/${MAX_CONSECUTIVE_ERRORS}): ${e.message}`)
+          backoffMs = this.backoff(config, consecutiveErrors)
+          this.log('warn', `네트워크 오류 (${consecutiveErrors}/${MAX_CONSECUTIVE_ERRORS}): ${e.message} — ${(backoffMs / 1000).toFixed(0)}초 후 재시도`)
         } else {
           this.log('error', `조회 오류 (${consecutiveErrors}/${MAX_CONSECUTIVE_ERRORS}): ${describeError(e)}`)
         }
         if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
-          this.finish('error', `오류가 ${MAX_CONSECUTIVE_ERRORS}회 연속 발생하여 중지했습니다.`)
+          this.finish('error', `오류가 ${MAX_CONSECUTIVE_ERRORS}회 연속 발생하여 중지했습니다. 네트워크 상태를 확인한 뒤 다시 시작하세요.`)
           return
         }
       }
 
       if (signal.aborted) return
-      const delay = config.intervalMs + Math.floor(this.deps.random() * config.jitterMs)
+      const delay = Math.max(config.intervalMs, backoffMs) + Math.floor(this.deps.random() * config.jitterMs)
       this.state.nextCheckAt = this.deps.now() + delay
       this.emitState()
       await sleep(delay, signal)
     }
+  }
+
+  /** Exponential backoff for transient failures: interval, 2×, 4×, … capped at MAX_ERROR_BACKOFF_MS. */
+  private backoff(config: BookingConfig, consecutiveErrors: number): number {
+    const factor = 2 ** Math.min(10, Math.max(0, consecutiveErrors - 1))
+    return Math.min(MAX_ERROR_BACKOFF_MS, config.intervalMs * factor)
   }
 
   /** Record a successful reservation, finish the run, and emit success. */
@@ -296,37 +359,60 @@ export class BookingEngine extends EventEmitter<BookingEngineEvents> {
     this.emit('success', reservation)
   }
 
-  /** Look up whether this train is already reserved (used to recover from a lost reserve response). */
-  private async findExistingReservation(train: Train): Promise<Reservation | null> {
-    try {
-      const existing = await this.deps.client.reservations()
-      return (
-        existing.find(
-          (r) => r.trainNo === train.trainNo && r.runDate === train.runDate && r.depCode === train.depCode && r.arrCode === train.arrCode,
-        ) ?? null
-      )
-    } catch {
-      return null
-    }
+  /**
+   * Look up whether this train is already reserved (used to recover from a lost reserve
+   * response). Throws when the lookup itself fails so the caller can tell "not reserved"
+   * from "unknown".
+   */
+  private async lookupReservation(train: Train): Promise<Reservation | null> {
+    const existing = await this.deps.client.reservations()
+    return (
+      existing.find(
+        (r) => r.trainNo === train.trainNo && r.runDate === train.runDate && r.depCode === train.depCode && r.arrCode === train.arrCode,
+      ) ?? null
+    )
   }
 
-  private async tryRelogin(): Promise<boolean> {
+  /**
+   * Re-authenticate after a session expiry. 'ok' = continue at once, 'retry' = a transient
+   * network failure, try again after the (backed-off) interval, 'fatal' = the run was finished.
+   */
+  private async tryRelogin(): Promise<'ok' | 'retry' | 'fatal'> {
+    const now = this.deps.now()
+    this.reloginTimes = this.reloginTimes.filter((t) => now - t < RELOGIN_WINDOW_MS)
+    if (this.reloginTimes.length >= MAX_RELOGINS_PER_WINDOW) {
+      this.finish(
+        'error',
+        `세션이 ${RELOGIN_WINDOW_MS / 60_000}분 안에 ${MAX_RELOGINS_PER_WINDOW}회 이상 만료되었습니다. 코레일이 이 계정의 세션을 계속 끊고 있을 수 있으니 ` +
+          '잠시 후 코레일+ 앱에서 직접 로그인해 확인하세요.',
+      )
+      return 'fatal'
+    }
+    this.reloginTimes.push(now)
     this.log('warn', '세션이 만료되어 다시 로그인합니다.')
     if (!this.deps.relogin) {
       this.finish('error', '세션이 만료되었습니다. 다시 로그인한 뒤 시작하세요.')
-      return false
+      return 'fatal'
     }
     try {
       const ok = await this.deps.relogin()
       if (!ok) {
         this.finish('error', '재로그인에 실패했습니다. 다시 로그인한 뒤 시작하세요.')
-        return false
+        return 'fatal'
       }
       this.log('info', '재로그인 성공. 계속 진행합니다.')
-      return true
+      return 'ok'
     } catch (e) {
+      if (e instanceof NetworkError) {
+        this.log('warn', `재로그인 중 네트워크 오류: ${e.message} — 잠시 후 다시 시도합니다.`)
+        return 'retry'
+      }
+      if (e instanceof DynaPathError) {
+        this.finish('error', MACRO_BLOCK_MESSAGE)
+        return 'fatal'
+      }
       this.finish('error', `재로그인 실패: ${describeError(e)}`)
-      return false
+      return 'fatal'
     }
   }
 
@@ -360,6 +446,10 @@ export function seatPrefLabel(p: BookingConfig['seatPreference']): string {
     default:
       return '일반실 우선'
   }
+}
+
+function fmtHm(hhmm: string): string {
+  return `${hhmm.slice(0, 2)}:${hhmm.slice(2, 4)}`
 }
 
 function seatSummary(t: Train): string {

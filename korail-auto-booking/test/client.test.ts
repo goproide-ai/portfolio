@@ -269,6 +269,21 @@ describe('KorailClient.searchTrains / searchWindow', () => {
     await expect(c2.searchTrains({ dep: '서울', arr: '부산', date: '20260910', time: '080000' })).rejects.toThrow(NeedToLoginError)
   })
 
+  it('reports an empty first page with the server message, but a later empty page just ends the scan', async () => {
+    const { client } = await loggedInClient(() => jsonResponse({ strResult: 'FAIL', h_msg_cd: 'WRG000000', h_msg_txt: '운행 열차가 없습니다' }))
+    await expect(client.searchWindow({ dep: '서울', arr: '부산', date: '20260910', timeFrom: '0800', timeTo: '1000' })).rejects.toThrow(/운행 열차가 없습니다/)
+
+    const firstPage = Array.from({ length: 10 }, (_, i) => trainJson(String(i + 1).padStart(3, '0'), `08${String(i * 5).padStart(2, '0')}00`))
+    const { client: c2, calls } = await loggedInClient((r) =>
+      r.params.get('txtGoHour') === '080000'
+        ? jsonResponse({ strResult: 'SUCC', trn_infos: { trn_info: firstPage } })
+        : jsonResponse({ strResult: 'FAIL', h_msg_cd: 'WRG000000', h_msg_txt: '운행 열차가 없습니다' }),
+    )
+    const trains = await c2.searchWindow({ dep: '서울', arr: '부산', date: '20260910', timeFrom: '0800', timeTo: '1000' })
+    expect(trains).toHaveLength(10)
+    expect(calls).toHaveLength(2)
+  })
+
   it('pages through the window and stops after the end time', async () => {
     const pages: Record<string, string[]> = {
       '080000': ['080000', '081500', '083000', '084500', '090000', '091500', '093000', '094500', '100000', '101500'],

@@ -24,7 +24,7 @@ import {
 } from './constants'
 import { generateSid, transformLoginPassword, type LoginCryptoInfo } from './crypto'
 import { DYNAPATH_HEADER, DynapathTokenGenerator, buildDefaultSettings } from './dynapath'
-import { DynaPathError, KorailError, LoginError, NeedToLoginError, NetworkError, NoResultsError, SoldOutError, errorFromResponse } from './errors'
+import { DynaPathError, KorailError, LoginError, NeedToLoginError, NetworkError, NoResultsError, SoldOutError, describeNetworkFailure, errorFromResponse } from './errors'
 import { extractReservationInfos, extractTrainInfos, parseReservation, parseTrain } from './parse'
 import { normalizePassengers, reservePassengerParams, searchPassengerParams } from './passengers'
 
@@ -41,6 +41,8 @@ export interface KorailClientOptions {
   deviceModel?: string
   userAgent?: string
   timeoutMs?: number
+  /** Pause between the pages of one window scan so a wide window is not a burst of requests. */
+  pageDelayMs?: number
   /** Debug logger. Never receives credentials. */
   logger?: (message: string) => void
   endpoints?: Partial<Endpoints>
@@ -75,6 +77,11 @@ export interface WindowSearchOptions {
   passengers?: Partial<Passengers>
   /** Called after every page — lets callers abort a long scan. */
   shouldContinue?: () => boolean
+}
+
+export interface SearchTrainsOptions {
+  /** Rethrow Korail's "no results" answer instead of returning [] (keeps the server's explanation). */
+  throwOnNoResults?: boolean
 }
 
 export interface ReserveResult {
@@ -228,6 +235,7 @@ export class KorailClient {
   private _version: string
   private readonly userAgent: string
   private readonly timeoutMs: number
+  private readonly pageDelayMs: number
   private readonly log: (message: string) => void
   private readonly endpoints: Endpoints
   private readonly now: () => number
@@ -245,6 +253,7 @@ export class KorailClient {
     const deviceModel = options.deviceModel ?? DEVICE_MODEL
     this.userAgent = options.userAgent ?? buildUserAgent(osRelease, deviceModel)
     this.timeoutMs = options.timeoutMs ?? 15_000
+    this.pageDelayMs = Math.max(0, options.pageDelayMs ?? 300)
     this.log = options.logger ?? (() => undefined)
     this.endpoints = { ...ENDPOINTS, ...(options.endpoints ?? {}) }
     this.now = options.now ?? (() => Date.now())
@@ -355,7 +364,7 @@ export class KorailClient {
   // --------------------------------------------------------------- search
 
   /** One page (up to 10 trains) of ScheduleView. Returns every train the API lists, including sold-out ones. */
-  async searchTrains(opts: SearchOptions): Promise<Train[]> {
+  async searchTrains(opts: SearchOptions, { throwOnNoResults = false }: SearchTrainsOptions = {}): Promise<Train[]> {
     const passengers = normalizePassengers(opts.passengers)
     const trainGroup = opts.trainGroup ?? TRAIN_GROUP.ALL
     const form: Params = {
@@ -386,7 +395,7 @@ export class KorailClient {
     try {
       json = await this.request('POST', this.endpoints.schedule, form)
     } catch (e) {
-      if (e instanceof NoResultsError) return []
+      if (e instanceof NoResultsError && !throwOnNoResults) return []
       throw e
     }
     return extractTrainInfos(json).map(parseTrain)
@@ -395,6 +404,10 @@ export class KorailClient {
   /**
    * Scan a departure-time window by paging ScheduleView (the server caps each
    * answer at 10 trains) until the last train departs after the window.
+   *
+   * Throws `NoResultsError` (with Korail's own explanation) when the very first
+   * page is empty; later empty pages just end the scan. Pages are spaced by
+   * `pageDelayMs` so a wide window does not turn into a burst of requests.
    */
   async searchWindow(opts: WindowSearchOptions): Promise<Train[]> {
     const from = `${opts.timeFrom.replace(':', '').slice(0, 4)}00`
@@ -402,7 +415,7 @@ export class KorailClient {
     const seen = new Map<string, Train>()
     let time = from
     for (let page = 0; page < MAX_SCHEDULE_PAGES; page++) {
-      const trains = await this.searchTrains({ ...opts, time })
+      const trains = await this.searchTrains({ ...opts, time }, { throwOnNoResults: page === 0 })
       if (trains.length === 0) break
       let added = 0
       for (const t of trains) {
@@ -417,6 +430,10 @@ export class KorailClient {
       if (!next) break
       time = next
       if (opts.shouldContinue && !opts.shouldContinue()) break
+      if (this.pageDelayMs > 0) {
+        await new Promise((resolve) => setTimeout(resolve, this.pageDelayMs))
+        if (opts.shouldContinue && !opts.shouldContinue()) break
+      }
     }
     return [...seen.values()]
       .filter((t) => t.depTime >= from && t.depTime <= to)
@@ -562,7 +579,7 @@ export class KorailClient {
       text = await res.text()
     } catch (e) {
       const aborted = (e as Error)?.name === 'AbortError'
-      throw new NetworkError(aborted ? `요청 시간 초과 (${this.timeoutMs}ms)` : `네트워크 오류: ${(e as Error)?.message ?? e}`, e)
+      throw new NetworkError(aborted ? `요청 시간 초과 (${this.timeoutMs}ms) — 네트워크 상태를 확인하세요.` : describeNetworkFailure(e), e)
     } finally {
       clearTimeout(timer)
     }
