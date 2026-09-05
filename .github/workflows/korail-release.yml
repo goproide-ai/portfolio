@@ -44,11 +44,11 @@ jobs:
             os: ubuntu-latest
             args: --linux AppImage --x64
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: ${{ github.event.inputs.tag || github.ref }}
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -88,7 +88,7 @@ jobs:
           E2E_ELECTRON_ARGS: --no-sandbox --disable-gpu
 
       - name: Upload installers
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: installers-${{ matrix.name }}
           path: |
@@ -106,7 +106,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Download all installers
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: installers
           pattern: installers-*
@@ -117,7 +117,7 @@ jobs:
         run: ls -la installers
 
       - name: Create draft release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ github.event.inputs.tag || github.ref_name }}
           name: 코레일 자동예매 ${{ github.event.inputs.tag || github.ref_name }}
