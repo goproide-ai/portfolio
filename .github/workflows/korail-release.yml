@@ -1,0 +1,137 @@
+name: korail-auto-booking release
+
+# Builds installers for Windows, macOS and Linux and attaches them to a GitHub Release.
+#
+# Trigger by pushing a tag:   git tag korail-v0.1.0 && git push origin korail-v0.1.0
+# The release is created as a DRAFT so it can be reviewed before it goes public.
+on:
+  push:
+    tags: ['korail-v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing tag to release (e.g. korail-v0.1.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: korail-release-${{ github.event.inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    working-directory: korail-auto-booking
+
+jobs:
+  build:
+    name: build (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: windows
+            os: windows-latest
+            args: --win nsis portable --x64
+          - name: macos
+            os: macos-latest
+            args: --mac dmg zip --x64 --arm64
+          - name: linux
+            os: ubuntu-latest
+            args: --linux AppImage --x64
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: korail-auto-booking/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Build bundles
+        run: npm run build
+
+      - name: Package installers
+        run: npx electron-builder ${{ matrix.args }} --publish never
+        env:
+          # No code-signing certificates: produce unsigned installers and never try to sign/notarize.
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+
+      - name: Install Xvfb (linux smoke test)
+        if: matrix.name == 'linux'
+        run: sudo apt-get update -q && sudo apt-get install -y -q --no-install-recommends xvfb
+
+      - name: Smoke-test the packaged app (linux)
+        if: matrix.name == 'linux'
+        # Drives the unpacked release build (same contents as the AppImage) through login → poll → reserve → cancel
+        # against the mock Korail server, so a broken asar/preload path can never ship silently.
+        run: xvfb-run -a --server-args="-screen 0 1280x900x24" npm run e2e
+        env:
+          E2E_ELECTRON_EXECUTABLE: release/linux-unpacked/korail-auto-booking
+          E2E_ELECTRON_ARGS: --no-sandbox --disable-gpu
+
+      - name: Upload installers
+        uses: actions/upload-artifact@v4
+        with:
+          name: installers-${{ matrix.name }}
+          path: |
+            korail-auto-booking/release/*.exe
+            korail-auto-booking/release/*.dmg
+            korail-auto-booking/release/*.zip
+            korail-auto-booking/release/*.AppImage
+          if-no-files-found: error
+          retention-days: 30
+
+  release:
+    name: draft GitHub release
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Download all installers
+        uses: actions/download-artifact@v4
+        with:
+          path: installers
+          pattern: installers-*
+          merge-multiple: true
+
+      - name: List installers
+        working-directory: ${{ github.workspace }}
+        run: ls -la installers
+
+      - name: Create draft release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.tag || github.ref_name }}
+          name: 코레일 자동예매 ${{ github.event.inputs.tag || github.ref_name }}
+          draft: true
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          files: installers/*
+          body: |
+            코레일+ 계정으로 지정한 날짜·시간대의 빈 좌석을 자동 예약하는 데스크탑 앱입니다.
+
+            **설치 파일**
+            - Windows: `*-win-x64.exe` (설치본) / `*-win-x64-portable.exe` (무설치) — SmartScreen 경고가 뜨면 "추가 정보 → 실행"
+            - macOS: `*-mac-arm64.dmg` (Apple Silicon) / `*-mac-x64.dmg` (Intel) — 서명되지 않은 앱이므로 우클릭 → 열기, 또는 `xattr -cr "/Applications/Korail Auto Booking.app"`
+            - Linux: `*-linux-x86_64.AppImage` — `chmod +x` 후 실행
+
+            결제는 이 앱이 하지 않습니다. 예약 후 결제기한 안에 코레일+ 앱에서 직접 결제하세요.
+            코레일 매크로 방지 정책에 유의해 조회 간격을 넉넉히 두고 사용하세요.

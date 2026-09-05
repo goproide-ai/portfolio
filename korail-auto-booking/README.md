@@ -39,7 +39,18 @@
 - **안전한 로그인 저장**: "로그인 정보 저장"을 켜면 운영체제 보안 저장소(Windows DPAPI / macOS 키체인)로
   비밀번호를 암호화해 보관합니다. 평문으로 저장하지 않습니다.
 
-## 요구 사항
+## 다운로드 / 설치
+
+설치 파일은 이 저장소의 **[Releases](https://github.com/goproide-ai/portfolio/releases)** 페이지에서 받을 수 있습니다
+(`korail-v*` 태그). 코드 서명 인증서 없이 빌드하므로 처음 실행할 때 운영체제 경고가 뜹니다.
+
+| OS | 파일 | 처음 실행 |
+| --- | --- | --- |
+| Windows 10/11 | `korail-auto-booking-<버전>-win-x64.exe` (설치본) / `...-win-x64-portable.exe` (무설치) | SmartScreen 창에서 **추가 정보 → 실행** |
+| macOS 12+ | `...-mac-arm64.dmg` (Apple Silicon) / `...-mac-x64.dmg` (Intel) | 앱을 **우클릭 → 열기**, 또는 `xattr -cr "/Applications/Korail Auto Booking.app"` |
+| Linux | `...-linux-x86_64.AppImage` | `chmod +x` 후 실행 |
+
+## 요구 사항 (소스에서 실행할 때)
 
 - Node.js 22.12 이상
 - Windows 10+, macOS 12+, 또는 Linux (X11/Wayland)
@@ -77,6 +88,8 @@ npm run dev      # 개발 모드로 앱 실행 (Vite HMR)
 | `npm run dist:win` / `dist:mac` / `dist:linux` | 특정 OS용 패키징 |
 
 > 리눅스에서 디스플레이가 없으면 E2E는 `xvfb-run -a npm run e2e`로 실행하세요.
+> 패키징된 앱을 검증하려면 `E2E_ELECTRON_EXECUTABLE=release/linux-unpacked/korail-auto-booking npm run e2e`처럼
+> 실행 파일을 지정합니다 (릴리스 워크플로가 Linux 빌드에 대해 이 검사를 자동으로 수행합니다).
 
 ## 배포용 패키지 만들기
 
@@ -88,6 +101,19 @@ npm run dist:mac        # macOS용 (dmg + zip)
 
 설치 파일은 `release/`에 생성됩니다. 설정은 `electron-builder.yml`을 참고하세요.
 앱 아이콘은 `node scripts/make-icon.mjs`로 다시 생성할 수 있습니다.
+
+### 릴리스 만들기 (GitHub Actions)
+
+`korail-v*` 태그를 푸시하면 `.github/workflows/korail-release.yml`이 Windows·macOS·Linux 설치 파일을
+빌드해 **초안(draft) 릴리스**에 첨부합니다. Releases 페이지에서 내용을 확인하고 **Publish release**를 누르면 공개됩니다.
+
+```bash
+# package.json의 version을 올린 뒤
+git tag korail-v0.1.0
+git push origin korail-v0.1.0
+```
+
+PR과 푸시마다 `.github/workflows/korail-ci.yml`이 타입 검사·단위 테스트·빌드·종단 테스트를 실행합니다.
 
 ## 구조
 

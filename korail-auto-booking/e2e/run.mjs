@@ -18,8 +18,13 @@ const userData = mkdtempSync(join(tmpdir(), 'korail-e2e-'))
 console.log(`mock korail at ${mock.base}, userData ${userData}`)
 
 const extraArgs = process.env.E2E_ELECTRON_ARGS ? process.env.E2E_ELECTRON_ARGS.split(' ') : []
+// E2E_ELECTRON_EXECUTABLE points at a packaged build (e.g. release/linux-unpacked/korail-auto-booking)
+// to verify the installer contents; otherwise the dev Electron runs out/main/index.js.
+const packaged = process.env.E2E_ELECTRON_EXECUTABLE
+console.log(packaged ? `driving packaged app ${packaged}` : 'driving out/main/index.js with dev Electron')
 const app = await electron.launch({
-  args: ['out/main/index.js', ...extraArgs],
+  ...(packaged ? { executablePath: packaged } : {}),
+  args: [...(packaged ? [] : ['out/main/index.js']), ...extraArgs],
   env: { ...process.env, KORAIL_API_BASE: mock.base, KORAIL_USER_DATA: userData, KORAIL_DEBUG: '1' },
 })
 app.process().stdout?.on('data', (d) => process.stdout.write(`[electron] ${d}`))

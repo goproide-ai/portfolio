@@ -1,0 +1,72 @@
+name: korail-auto-booking CI
+
+# Typecheck, unit tests, production build and the Electron end-to-end test
+# (against the mock Korail server) for the desktop app in korail-auto-booking/.
+on:
+  push:
+    branches: ['**']
+    paths:
+      - 'korail-auto-booking/**'
+      - '.github/workflows/korail-ci.yml'
+  pull_request:
+    paths:
+      - 'korail-auto-booking/**'
+      - '.github/workflows/korail-ci.yml'
+
+concurrency:
+  group: korail-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: korail-auto-booking
+
+jobs:
+  test:
+    name: typecheck · unit · build · e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: korail-auto-booking/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        env:
+          # The e2e test drives Electron through Playwright; no Playwright browsers are needed.
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Install Xvfb
+        run: sudo apt-get update -q && sudo apt-get install -y -q --no-install-recommends xvfb
+
+      - name: End-to-end (real Electron + mock Korail server)
+        run: xvfb-run -a --server-args="-screen 0 1280x900x24" npm run e2e
+        env:
+          # GitHub's Ubuntu runners restrict unprivileged user namespaces, which breaks Chromium's SUID sandbox.
+          E2E_ELECTRON_ARGS: --no-sandbox --disable-gpu
+
+      - name: Upload e2e screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-screenshots
+          path: korail-auto-booking/e2e/screenshots/
+          if-no-files-found: ignore
+          retention-days: 14

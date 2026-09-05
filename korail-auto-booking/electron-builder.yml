@@ -9,25 +9,31 @@ files:
   - package.json
   - '!**/*.map'
 asar: true
+# e.g. korail-auto-booking-0.1.0-win-x64.exe / -mac-arm64.dmg / -linux-x64.AppImage
+artifactName: korail-auto-booking-${version}-${os}-${arch}.${ext}
 win:
   target:
     - nsis
     - portable
-  artifactName: ${productName}-${version}-win-${arch}.${ext}
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
   shortcutName: 코레일 자동예매
+portable:
+  # The nsis installer and the portable exe would otherwise get the same file name.
+  artifactName: korail-auto-booking-${version}-win-${arch}-portable.${ext}
 mac:
   target:
     - dmg
     - zip
   category: public.app-category.travel
-  artifactName: ${productName}-${version}-mac-${arch}.${ext}
+  # Unsigned build (no Apple Developer certificate). Users open it via right-click → 열기 or `xattr -cr`.
+  identity: null
 linux:
   target:
     - AppImage
   category: Utility
-  artifactName: ${productName}-${version}-linux-${arch}.${ext}
+  maintainer: goproide
+# Releases are created by .github/workflows/korail-release.yml, not by electron-builder's publisher.
 publish: null
