@@ -47,7 +47,7 @@
 | OS | 파일 | 처음 실행 |
 | --- | --- | --- |
 | Windows 10/11 | `korail-auto-booking-<버전>-win-x64.exe` (설치본) / `...-win-x64-portable.exe` (무설치) | SmartScreen 창에서 **추가 정보 → 실행** |
-| macOS 12+ | `...-mac-arm64.dmg` (Apple Silicon) / `...-mac-x64.dmg` (Intel) | 앱을 **우클릭 → 열기**, 또는 `xattr -cr "/Applications/Korail Auto Booking.app"` |
+| macOS 12+ | `...-mac-arm64.dmg` (Apple Silicon) / `...-mac-x64.dmg` (Intel) | 서명되지 않은 앱이라 "손상됨"으로 표시됩니다. 처음 실행 전 터미널에서 `xattr -cr "/Applications/Korail Auto Booking.app"` |
 | Linux | `...-linux-x86_64.AppImage` | `chmod +x` 후 실행 |
 
 ## 요구 사항 (소스에서 실행할 때)

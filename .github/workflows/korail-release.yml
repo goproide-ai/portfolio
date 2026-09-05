@@ -3,6 +3,7 @@ name: korail-auto-booking release
 # Builds installers for Windows, macOS and Linux and attaches them to a GitHub Release.
 #
 # Trigger by pushing a tag:   git tag korail-v0.1.0 && git push origin korail-v0.1.0
+# The tag must match korail-auto-booking/package.json "version" (korail-v<version>).
 # The release is created as a DRAFT so it can be reviewed before it goes public.
 on:
   push:
@@ -14,22 +15,23 @@ on:
         required: true
         type: string
 
+# Least privilege: the build jobs run third-party install scripts and download packaging tools,
+# so they get a read-only token. Only the release job may write (create the draft release).
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: korail-release-${{ github.event.inputs.tag || github.ref_name }}
   cancel-in-progress: false
-
-defaults:
-  run:
-    working-directory: korail-auto-booking
 
 jobs:
   build:
     name: build (${{ matrix.name }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: korail-auto-booking
     strategy:
       fail-fast: false
       matrix:
@@ -44,15 +46,41 @@ jobs:
             os: ubuntu-latest
             args: --linux AppImage --x64
     steps:
+      - name: Validate release tag
+        # Runs before checkout so a bad tag / dispatch input fails in seconds, not after three builds.
+        shell: bash
+        working-directory: ${{ github.workspace }}
+        env:
+          TAG: ${{ github.event.inputs.tag || github.ref_name }}
+        run: |
+          re='^korail-v[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.]+)?$'
+          if [[ ! "$TAG" =~ $re ]]; then
+            echo "::error::'$TAG' is not a release tag of the form korail-vX.Y.Z"
+            exit 1
+          fi
+
       - uses: actions/checkout@v7
         with:
-          ref: ${{ github.event.inputs.tag || github.ref }}
+          # Qualify a dispatched tag so checkout cannot resolve it as a branch of the same name.
+          ref: ${{ github.event.inputs.tag && format('refs/tags/{0}', github.event.inputs.tag) || github.ref }}
+          persist-credentials: false
 
       - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
           cache-dependency-path: korail-auto-booking/package-lock.json
+
+      - name: Verify tag matches package.json version
+        shell: bash
+        env:
+          TAG: ${{ github.event.inputs.tag || github.ref_name }}
+        run: |
+          PKG_VERSION="$(node -p "require('./package.json').version")"
+          if [ "$PKG_VERSION" != "${TAG#korail-v}" ]; then
+            echo "::error::package.json version ($PKG_VERSION) does not match release tag $TAG (expected korail-v$PKG_VERSION)"
+            exit 1
+          fi
 
       - name: Install dependencies
         run: npm ci
@@ -104,6 +132,8 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      contents: write
     steps:
       - name: Download all installers
         uses: actions/download-artifact@v8
@@ -113,8 +143,19 @@ jobs:
           merge-multiple: true
 
       - name: List installers
-        working-directory: ${{ github.workspace }}
         run: ls -la installers
+
+      - name: Refuse to overwrite a published release
+        # A re-run for an already-published tag would silently replace installers people may have downloaded.
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.event.inputs.tag || github.ref_name }}
+        run: |
+          if [ "$(gh release view "$TAG" --json isDraft --jq .isDraft 2>/dev/null)" = "false" ]; then
+            echo "::error::Release $TAG is already published; refusing to replace its installers. Delete or un-publish it first."
+            exit 1
+          fi
 
       - name: Create draft release
         uses: softprops/action-gh-release@v3
@@ -130,7 +171,7 @@ jobs:
 
             **설치 파일**
             - Windows: `*-win-x64.exe` (설치본) / `*-win-x64-portable.exe` (무설치) — SmartScreen 경고가 뜨면 "추가 정보 → 실행"
-            - macOS: `*-mac-arm64.dmg` (Apple Silicon) / `*-mac-x64.dmg` (Intel) — 서명되지 않은 앱이므로 우클릭 → 열기, 또는 `xattr -cr "/Applications/Korail Auto Booking.app"`
+            - macOS: `*-mac-arm64.dmg` (Apple Silicon) / `*-mac-x64.dmg` (Intel) — 서명되지 않은 앱이므로 처음 실행 전 터미널에서 `xattr -cr "/Applications/Korail Auto Booking.app"` 실행
             - Linux: `*-linux-x86_64.AppImage` — `chmod +x` 후 실행
 
             결제는 이 앱이 하지 않습니다. 예약 후 결제기한 안에 코레일+ 앱에서 직접 결제하세요.

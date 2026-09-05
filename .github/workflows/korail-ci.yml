@@ -4,7 +4,8 @@ name: korail-auto-booking CI
 # (against the mock Korail server) for the desktop app in korail-auto-booking/.
 on:
   push:
-    branches: ['**']
+    # Feature branches are covered once via their pull request (merge ref); master via push.
+    branches: [master]
     paths:
       - 'korail-auto-booking/**'
       - '.github/workflows/korail-ci.yml'
@@ -31,6 +32,9 @@ jobs:
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v7
+        with:
+          # Nothing here pushes; don't leave the token in the workspace for npm lifecycle scripts to find.
+          persist-credentials: false
 
       - uses: actions/setup-node@v7
         with:

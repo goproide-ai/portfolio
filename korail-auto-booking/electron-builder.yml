@@ -9,7 +9,7 @@ files:
   - package.json
   - '!**/*.map'
 asar: true
-# e.g. korail-auto-booking-0.1.0-win-x64.exe / -mac-arm64.dmg / -linux-x64.AppImage
+# e.g. korail-auto-booking-0.1.0-win-x64.exe / -mac-arm64.dmg / -linux-x86_64.AppImage (AppImage uses x86_64)
 artifactName: korail-auto-booking-${version}-${os}-${arch}.${ext}
 win:
   target:
@@ -28,7 +28,8 @@ mac:
     - dmg
     - zip
   category: public.app-category.travel
-  # Unsigned build (no Apple Developer certificate). Users open it via right-click → 열기 or `xattr -cr`.
+  # Unsigned build (no Apple Developer certificate). Gatekeeper shows it as damaged until the user clears
+  # quarantine with `xattr -cr "/Applications/Korail Auto Booking.app"` before first launch.
   identity: null
 linux:
   target:
