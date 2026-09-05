@@ -32,7 +32,7 @@ export function elapsed(from: number | null, now: number): string {
   return `${sec}초`
 }
 
-/** Parse yyyyMMdd + hhmmss (KST wall-clock) into a local Date. */
+/** Parse yyyyMMdd + hhmmss (Korail returns KST wall-clock) into an absolute Date, anchored to UTC+9. */
 export function deadlineDate(date: string, time: string): Date | null {
   if (!/^\d{8}$/.test(date) || !/^\d{4,6}$/.test(time)) return null
   const y = Number(date.slice(0, 4))
@@ -41,7 +41,9 @@ export function deadlineDate(date: string, time: string): Date | null {
   const h = Number(time.slice(0, 2))
   const mi = Number(time.slice(2, 4))
   const s = time.length >= 6 ? Number(time.slice(4, 6)) : 0
-  return new Date(y, mo, d, h, mi, s)
+  // Date.UTC with h-9 converts the KST wall-clock to the correct absolute instant on any timezone,
+  // and handles the negative-hour rollover for early-morning deadlines.
+  return new Date(Date.UTC(y, mo, d, h - 9, mi, s))
 }
 
 export function remaining(deadline: Date | null, now: number): string {

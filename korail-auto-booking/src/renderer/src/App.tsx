@@ -15,7 +15,7 @@ import type {
 import { inWindow, matchesCategory } from '../../shared/trains'
 import { BookingControls, type BookingOptions } from './components/BookingControls'
 import { LoginCard } from './components/LoginCard'
-import { LogPanel } from './components/LogPanel'
+import { LogPanel, type IdLogEntry } from './components/LogPanel'
 import { ReservationPanel } from './components/ReservationPanel'
 import { SearchForm, type SearchFormValue } from './components/SearchForm'
 import { StatusBar } from './components/StatusBar'
@@ -92,10 +92,12 @@ function formFromLastSearch(last: NonNullable<AppSettings['lastSearch']>, base: 
 }
 
 function toSearchRequest(form: SearchFormValue): SearchRequest {
+  // Clamp to today so a window left open past midnight can't submit a past (dead) date.
+  const date = form.date >= todayISO() ? form.date : todayISO()
   return {
     dep: form.dep.trim(),
     arr: form.arr.trim(),
-    date: isoToCompact(form.date),
+    date: isoToCompact(date),
     timeFrom: form.timeFrom.replace(':', ''),
     timeTo: form.timeTo.replace(':', ''),
     categories: form.categories,
@@ -115,7 +117,7 @@ export default function App(): JSX.Element {
   const [searching, setSearching] = useState(false)
   const [searchedOnce, setSearchedOnce] = useState(false)
   const [booking, setBooking] = useState<BookingState>(IDLE_STATE)
-  const [logs, setLogs] = useState<LogEntry[]>([])
+  const [logs, setLogs] = useState<IdLogEntry[]>([])
   const [reservations, setReservations] = useState<Reservation[]>([])
   const [reservationsBusy, setReservationsBusy] = useState(false)
   const [authBusy, setAuthBusy] = useState(false)
@@ -123,6 +125,7 @@ export default function App(): JSX.Element {
   const [toast, setToast] = useState<{ text: string; kind: 'error' | 'info' } | null>(null)
   const prevStatus = useRef<BookingState['status']>('idle')
   const toastTimer = useRef<number | null>(null)
+  const logSeq = useRef(0)
 
   const running = booking.status === 'running'
 
@@ -133,7 +136,8 @@ export default function App(): JSX.Element {
   }, [])
 
   const pushLog = useCallback((entry: LogEntry) => {
-    setLogs((prev) => (prev.length >= MAX_LOGS ? [...prev.slice(prev.length - MAX_LOGS + 1), entry] : [...prev, entry]))
+    const withId: IdLogEntry = { ...entry, id: logSeq.current++ }
+    setLogs((prev) => (prev.length >= MAX_LOGS ? [...prev.slice(prev.length - MAX_LOGS + 1), withId] : [...prev, withId]))
   }, [])
 
   const refreshReservations = useCallback(async () => {
@@ -165,6 +169,9 @@ export default function App(): JSX.Element {
         setAppInfo(info)
         setStations(names)
         setBooking(bs)
+        // The engine lives in the main process and survives renderer reloads; seed prevStatus so a
+        // hydrated 'success' state is not replayed as a live transition (chime + refresh).
+        prevStatus.current = bs.status
         setSavedLogin(saved)
         setOptions(optionsFromSettings(st))
         if (st.lastSearch) setForm((f) => formFromLastSearch(st.lastSearch!, f))
@@ -272,9 +279,17 @@ export default function App(): JSX.Element {
 
   const start = useCallback(async () => {
     const req = toSearchRequest(form)
+    // A designated train only gets booked if the search window can actually fetch it; the engine
+    // never scans outside timeFrom..timeTo. Refuse to start on a target outside the window rather
+    // than polling forever for a train that can never appear.
+    const targetKeys = [...selected].filter((k) => trains.some((t) => t.key === k && inWindow(t, form.timeFrom, form.timeTo)))
+    if (selected.size > targetKeys.length) {
+      showToast('선택한 열차 중 일부가 조회 시간대 밖입니다. 시간대를 넓히거나 다시 조회한 뒤 선택하세요.')
+      return
+    }
     const config: BookingConfig = {
       ...req,
-      targetTrainKeys: [...selected],
+      targetTrainKeys: targetKeys,
       seatPreference: options.seatPreference,
       allowWaitingList: options.allowWaitingList,
       intervalMs: Math.round(options.intervalSec * 1000),
@@ -287,7 +302,22 @@ export default function App(): JSX.Element {
     } catch (e) {
       showToast(errorMessage(e))
     }
-  }, [form, selected, options, showToast])
+  }, [form, selected, trains, options, showToast])
+
+  // Editing the route/date invalidates the previously searched train list and selection.
+  const onFormChange = useCallback(
+    (next: SearchFormValue) => {
+      setForm((prev) => {
+        if (next.dep !== prev.dep || next.arr !== prev.arr || next.date !== prev.date) {
+          setTrains([])
+          setSearchedOnce(false)
+          setSelected(new Set())
+        }
+        return next
+      })
+    },
+    [],
+  )
 
   const stop = useCallback(async () => {
     try {
@@ -377,7 +407,7 @@ export default function App(): JSX.Element {
       ) : (
         <main className="layout">
           <aside className="sidebar">
-            <SearchForm value={form} onChange={setForm} stations={stations} onSearch={() => void search()} searching={searching} disabled={running} />
+            <SearchForm value={form} onChange={onFormChange} stations={stations} onSearch={() => void search()} searching={searching} disabled={running} />
             <BookingControls
               options={options}
               onChange={setOptions}

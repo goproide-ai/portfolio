@@ -32,9 +32,11 @@ const PASSENGER_LABELS: Array<[keyof Passengers, string]> = [
 ]
 
 function addDays(iso: string, days: number): string {
-  const d = new Date(iso)
-  d.setDate(d.getDate() + days)
-  return d.toISOString().slice(0, 10)
+  // Compute purely in local terms — a UTC parse + local mutate + UTC serialize would be off by a
+  // day in negative-offset timezones.
+  const [y, m, dd] = iso.split('-').map(Number)
+  const d = new Date(y, m - 1, dd + days)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
 export function SearchForm({ value, onChange, stations, onSearch, searching, disabled }: Props): JSX.Element {

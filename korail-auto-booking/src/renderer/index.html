@@ -4,9 +4,14 @@
     <meta charset="UTF-8" />
     <title>코레일 자동예매</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!--
+      Production CSP: the renderer makes no network requests of its own (everything goes through IPC),
+      so connect-src is 'self' only. Vite HMR's localhost ws/http origins are added back for dev by the
+      main process (session.onHeadersReceived when !app.isPackaged), never shipped in the packaged app.
+    -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' ws://localhost:* http://localhost:*"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; object-src 'none'"
     />
   </head>
   <body>

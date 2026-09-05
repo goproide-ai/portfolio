@@ -1,5 +1,6 @@
-import { BrowserWindow, app, safeStorage, shell } from 'electron'
+import { BrowserWindow, app, safeStorage, session, shell } from 'electron'
 import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { BookingEngine } from './booking/engine'
 import { broadcast, registerIpc, type IpcContext } from './ipc'
 import { KorailClient } from './korail/client'
@@ -41,8 +42,22 @@ function createWindow(): BrowserWindow {
     if (/^https?:/i.test(url)) void shell.openExternal(url)
     return { action: 'deny' }
   })
+  // Only the app's own renderer may load in this privileged window (it carries the preload bridge).
+  // Compare by origin (dev) or exact file URL (prod) — never allow the bare file: scheme, which would
+  // let any local HTML file inherit the bridge.
+  const rendererFileUrl = pathToFileURL(join(__dirname, '../renderer/index.html')).href
   win.webContents.on('will-navigate', (event, url) => {
-    if (!url.startsWith('file:') && !url.startsWith(process.env.ELECTRON_RENDERER_URL ?? 'about:blank')) {
+    let allowed = false
+    try {
+      if (isDev && process.env.ELECTRON_RENDERER_URL) {
+        allowed = new URL(url).origin === new URL(process.env.ELECTRON_RENDERER_URL).origin
+      } else {
+        allowed = url.split('#')[0] === rendererFileUrl
+      }
+    } catch {
+      allowed = false
+    }
+    if (!allowed) {
       event.preventDefault()
       if (/^https?:/i.test(url)) void shell.openExternal(url)
     }
@@ -107,6 +122,20 @@ if (!gotLock) {
 
   app.whenReady().then(() => {
     app.setAppUserModelId('dev.goproide.korail-auto-booking')
+    // In dev only, widen connect-src so Vite HMR (ws/http on localhost) works. The packaged app keeps
+    // the tight CSP from index.html; this never runs when app.isPackaged.
+    if (isDev) {
+      session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+        const headers = { ...details.responseHeaders }
+        for (const k of Object.keys(headers)) {
+          if (k.toLowerCase() === 'content-security-policy') delete headers[k]
+        }
+        headers['Content-Security-Policy'] = [
+          "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' ws://localhost:* http://localhost:*; base-uri 'none'; object-src 'none'",
+        ]
+        callback({ responseHeaders: headers })
+      })
+    }
     bootstrap()
     mainWindow = createWindow()
 

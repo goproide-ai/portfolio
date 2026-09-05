@@ -1,9 +1,13 @@
 import { EventEmitter } from 'node:events'
 import type { BookingConfig, BookingState, LogEntry, LogLevel, Reservation, Train } from '../../shared/types'
 import type { KorailClient } from '../korail/client'
-import { KorailError, NeedToLoginError, NetworkError, NoResultsError, SoldOutError, describeError } from '../korail/errors'
+import { DynaPathError, KorailError, NeedToLoginError, NetworkError, NoResultsError, SoldOutError, describeError } from '../korail/errors'
 import { normalizePassengers, totalPassengers } from '../korail/passengers'
 import { describeTrain, selectCandidates, selectTargets, windowBounds } from './matcher'
+
+/** Shown when Korail's anti-automation (매크로 방지) layer rejects a request. */
+export const MACRO_BLOCK_MESSAGE =
+  '코레일 매크로 방지(무결성) 검사에 걸렸습니다. 계정 보호를 위해 자동 예매를 중지합니다. 잠시 후 코레일+ 앱에서 직접 이용하세요.'
 
 export interface EngineDeps {
   client: KorailClient
@@ -52,6 +56,7 @@ export function validateConfig(input: BookingConfig): BookingConfig {
   if (dep === arr) throw new ConfigError('출발역과 도착역이 같습니다.')
   const date = (input.date ?? '').replace(/-/g, '')
   if (!/^\d{8}$/.test(date)) throw new ConfigError('날짜 형식이 올바르지 않습니다 (yyyyMMdd).')
+  if (date < kstToday()) throw new ConfigError('출발일이 지난 날짜입니다. 날짜를 다시 선택하세요.')
   const timeFrom = (input.timeFrom ?? '').replace(':', '')
   const timeTo = (input.timeTo ?? '').replace(':', '')
   if (!/^\d{4}$/.test(timeFrom) || !/^\d{4}$/.test(timeTo)) throw new ConfigError('시간 형식이 올바르지 않습니다 (hh:mm).')
@@ -75,6 +80,12 @@ export function validateConfig(input: BookingConfig): BookingConfig {
     jitterMs,
     maxAttempts,
   }
+}
+
+/** Today's date in Korea (yyyyMMdd); Korail schedules are in KST. */
+export function kstToday(now: number = Date.now()): string {
+  const kst = new Date(now + 9 * 60 * 60 * 1000)
+  return `${kst.getUTCFullYear()}${String(kst.getUTCMonth() + 1).padStart(2, '0')}${String(kst.getUTCDate()).padStart(2, '0')}`
 }
 
 function sleep(ms: number, signal: AbortSignal): Promise<void> {
@@ -201,25 +212,35 @@ export class BookingEngine extends EventEmitter<BookingEngineEvents> {
           this.log('info', `예약 시도: ${describeTrain(train)} (${seatSummary(train)})`)
           try {
             const result = await this.deps.client.reserve(train, config.passengers, config.seatPreference, config.allowWaitingList)
-            const reservation = result.reservation ?? synthesizeReservation(train, result.pnrNo, config, result.waiting)
-            this.state.reservation = reservation
-            this.finish('success', null)
-            this.log(
-              'success',
-              `${result.waiting ? '예약대기' : '예약'} 성공! 예약번호 ${reservation.rsvId} — ${describeTrain(train)}` +
-                (reservation.buyLimitTime ? `, 결제기한 ${formatDeadline(reservation)}` : ''),
-            )
-            this.emit('success', reservation)
+            // A stop()/start() may have fired while reserve() was in flight; do not commit into a
+            // stopped or superseded run (mirrors the abort re-check at every other await site).
+            if (signal.aborted) return
+            this.commitReservation(train, result.reservation ?? synthesizeReservation(train, result.pnrNo, config, result.waiting), result.waiting)
             return
           } catch (e) {
             if (e instanceof SoldOutError) {
               this.log('warn', `매진: ${describeTrain(train)} — 다른 열차를 시도합니다.`)
               continue
             }
+            if (e instanceof DynaPathError) {
+              this.finish('error', MACRO_BLOCK_MESSAGE)
+              return
+            }
             if (e instanceof NeedToLoginError) {
               const ok = await this.tryRelogin()
               if (!ok) return
               break
+            }
+            if (e instanceof NetworkError) {
+              // reserve() may have committed the seat before the response was lost; reconcile
+              // against existing reservations to avoid double-booking on the next poll.
+              const match = await this.findExistingReservation(train)
+              if (signal.aborted) return
+              if (match) {
+                this.commitReservation(train, match, match.waiting, '네트워크 오류 후 예약 확인됨')
+                return
+              }
+              throw e
             }
             if (e instanceof KorailError) {
               this.log('error', `예약 실패: ${describeError(e)}`)
@@ -230,10 +251,17 @@ export class BookingEngine extends EventEmitter<BookingEngineEvents> {
         }
       } catch (e) {
         if (signal.aborted) return
+        if (e instanceof DynaPathError) {
+          // Korail's anti-automation layer flagged the request. Stop immediately instead of
+          // hammering it further, which is exactly what escalates an account toward a block.
+          this.finish('error', MACRO_BLOCK_MESSAGE)
+          return
+        }
         consecutiveErrors += 1
         if (e instanceof NeedToLoginError) {
           const ok = await this.tryRelogin()
           if (!ok) return
+          consecutiveErrors = 0
         } else if (e instanceof NoResultsError) {
           this.log('info', `#${this.state.attempts} 조회 — 결과 없음`)
           consecutiveErrors = 0
@@ -253,6 +281,32 @@ export class BookingEngine extends EventEmitter<BookingEngineEvents> {
       this.state.nextCheckAt = this.deps.now() + delay
       this.emitState()
       await sleep(delay, signal)
+    }
+  }
+
+  /** Record a successful reservation, finish the run, and emit success. */
+  private commitReservation(train: Train, reservation: Reservation, waiting: boolean, prefix = ''): void {
+    this.state.reservation = reservation
+    this.finish('success', null)
+    this.log(
+      'success',
+      `${prefix ? `${prefix}: ` : ''}${waiting ? '예약대기' : '예약'} 성공! 예약번호 ${reservation.rsvId} — ${describeTrain(train)}` +
+        (reservation.buyLimitTime ? `, 결제기한 ${formatDeadline(reservation)}` : ''),
+    )
+    this.emit('success', reservation)
+  }
+
+  /** Look up whether this train is already reserved (used to recover from a lost reserve response). */
+  private async findExistingReservation(train: Train): Promise<Reservation | null> {
+    try {
+      const existing = await this.deps.client.reservations()
+      return (
+        existing.find(
+          (r) => r.trainNo === train.trainNo && r.runDate === train.runDate && r.depCode === train.depCode && r.arrCode === train.arrCode,
+        ) ?? null
+      )
+    } catch {
+      return null
     }
   }
 

@@ -2,8 +2,11 @@ import type { JSX } from 'react'
 import { useEffect, useRef } from 'react'
 import type { LogEntry } from '../../../shared/types'
 
+/** A log entry carrying a stable, monotonic id so React keys survive the ring buffer dropping its head. */
+export type IdLogEntry = LogEntry & { id: number }
+
 interface Props {
-  logs: LogEntry[]
+  logs: IdLogEntry[]
   onClear: () => void
 }
 
@@ -18,7 +21,9 @@ export function LogPanel({ logs, onClear }: Props): JSX.Element {
   useEffect(() => {
     const el = ref.current
     if (el && stick.current) el.scrollTop = el.scrollHeight
-  }, [logs.length])
+    // Depend on the array identity (new on every push), not its length — the ring buffer keeps the
+    // length fixed at the cap, so a length dep would stop auto-scrolling once it fills.
+  }, [logs])
 
   const onScroll = (): void => {
     const el = ref.current
@@ -38,8 +43,8 @@ export function LogPanel({ logs, onClear }: Props): JSX.Element {
         {logs.length === 0 ? (
           <div className="muted">아직 기록이 없습니다.</div>
         ) : (
-          logs.map((l, i) => (
-            <div key={`${l.ts}-${i}`} className={`log-line ${l.level}`}>
+          logs.map((l) => (
+            <div key={l.id} className={`log-line ${l.level}`}>
               <span className="log-time">{stamp(l.ts)}</span>
               <span className="log-msg">{l.message}</span>
             </div>
