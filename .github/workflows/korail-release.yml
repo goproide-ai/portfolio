@@ -2,8 +2,11 @@ name: korail-auto-booking release
 
 # Builds installers for Windows, macOS and Linux and attaches them to a GitHub Release.
 #
-# Trigger by pushing a tag:   git tag korail-v0.1.0 && git push origin korail-v0.1.0
-# The tag must match korail-auto-booking/package.json "version" (korail-v<version>).
+# Two ways to trigger:
+#   1. Push a tag:            git tag korail-v0.1.0 && git push origin korail-v0.1.0
+#   2. Run workflow manually: pick the branch to build and enter the tag to create (korail-vX.Y.Z);
+#      the tag is created from that branch's head when the draft release is published.
+# In both cases the tag must match korail-auto-booking/package.json "version" (korail-v<version>).
 # The release is created as a DRAFT so it can be reviewed before it goes public.
 on:
   push:
@@ -11,7 +14,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Existing tag to release (e.g. korail-v0.1.0)'
+        description: 'Tag to release, e.g. korail-v0.1.0 (created from the selected branch if it does not exist)'
         required: true
         type: string
 
@@ -61,8 +64,7 @@ jobs:
 
       - uses: actions/checkout@v7
         with:
-          # Qualify a dispatched tag so checkout cannot resolve it as a branch of the same name.
-          ref: ${{ github.event.inputs.tag && format('refs/tags/{0}', github.event.inputs.tag) || github.ref }}
+          # Tag push: the tagged commit. Manual run: the head of the branch selected in the UI/API.
           persist-credentials: false
 
       - uses: actions/setup-node@v7
@@ -161,6 +163,8 @@ jobs:
         uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ github.event.inputs.tag || github.ref_name }}
+          # Where a not-yet-existing tag gets created (on publish): the exact commit these installers were built from.
+          target_commitish: ${{ github.sha }}
           name: 코레일 자동예매 ${{ github.event.inputs.tag || github.ref_name }}
           draft: true
           generate_release_notes: true

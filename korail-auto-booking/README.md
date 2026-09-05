@@ -106,12 +106,16 @@ npm run dist:mac        # macOS용 (dmg + zip)
 
 `korail-v*` 태그를 푸시하면 `.github/workflows/korail-release.yml`이 Windows·macOS·Linux 설치 파일을
 빌드해 **초안(draft) 릴리스**에 첨부합니다. Releases 페이지에서 내용을 확인하고 **Publish release**를 누르면 공개됩니다.
+태그는 `package.json`의 `version`과 일치해야 합니다(`korail-v<version>`).
 
 ```bash
 # package.json의 version을 올린 뒤
 git tag korail-v0.1.0
 git push origin korail-v0.1.0
 ```
+
+태그를 직접 푸시하기 어려우면 Actions 탭에서 **korail-auto-booking release → Run workflow**로 빌드할 브랜치를 고르고
+만들 태그 이름을 입력해도 됩니다. 이 경우 태그는 초안 릴리스를 공개하는 시점에 그 브랜치의 커밋에서 생성됩니다.
 
 PR과 푸시마다 `.github/workflows/korail-ci.yml`이 타입 검사·단위 테스트·빌드·종단 테스트를 실행합니다.
 
