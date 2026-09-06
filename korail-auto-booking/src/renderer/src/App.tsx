@@ -31,6 +31,7 @@ const IDLE_STATE: BookingState = {
   lastCheckedAt: null,
   nextCheckAt: null,
   reservation: null,
+  waitlist: [],
   error: null,
   trains: [],
 }
@@ -52,6 +53,7 @@ function defaultOptions(): BookingOptions {
   return {
     seatPreference: 'GENERAL_FIRST',
     allowWaitingList: false,
+    continueAfterWaitlist: true,
     intervalSec: 4,
     jitterSec: 1.5,
     maxAttempts: 0,
@@ -64,6 +66,7 @@ function optionsFromSettings(s: AppSettings): BookingOptions {
   return {
     seatPreference: s.seatPreference,
     allowWaitingList: s.allowWaitingList,
+    continueAfterWaitlist: s.continueAfterWaitlist,
     intervalSec: s.intervalMs / 1000,
     jitterSec: s.jitterMs / 1000,
     maxAttempts: s.maxAttempts,
@@ -124,10 +127,13 @@ export default function App(): JSX.Element {
   const [authError, setAuthError] = useState<string | null>(null)
   const [toast, setToast] = useState<{ text: string; kind: 'error' | 'info' } | null>(null)
   const prevStatus = useRef<BookingState['status']>('idle')
+  const prevWaitlist = useRef(0)
   const toastTimer = useRef<number | null>(null)
   const logSeq = useRef(0)
 
   const running = booking.status === 'running'
+  // What the reservation panel shows on top: a secured seat, else the latest waiting list joined this run.
+  const highlight = booking.reservation ?? (booking.waitlist.length > 0 ? booking.waitlist[booking.waitlist.length - 1] : null)
 
   const showToast = useCallback((text: string, kind: 'error' | 'info' = 'error') => {
     setToast({ text, kind })
@@ -172,6 +178,7 @@ export default function App(): JSX.Element {
         // The engine lives in the main process and survives renderer reloads; seed prevStatus so a
         // hydrated 'success' state is not replayed as a live transition (chime + refresh).
         prevStatus.current = bs.status
+        prevWaitlist.current = bs.waitlist.length
         setSavedLogin(saved)
         setOptions(optionsFromSettings(st))
         if (st.lastSearch) setForm((f) => formFromLastSearch(st.lastSearch!, f))
@@ -196,6 +203,15 @@ export default function App(): JSX.Element {
     }
     prevStatus.current = booking.status
   }, [booking.status, options.soundOnSuccess, refreshReservations])
+
+  // A waiting list joined mid-run is worth the same chime and a refreshed reservation list.
+  useEffect(() => {
+    if (booking.waitlist.length > prevWaitlist.current) {
+      if (options.soundOnSuccess) playSuccessChime()
+      void refreshReservations()
+    }
+    prevWaitlist.current = booking.waitlist.length
+  }, [booking.waitlist.length, options.soundOnSuccess, refreshReservations])
 
   // Keep the table in sync with what the engine last saw.
   useEffect(() => {
@@ -292,6 +308,7 @@ export default function App(): JSX.Element {
       targetTrainKeys: targetKeys,
       seatPreference: options.seatPreference,
       allowWaitingList: options.allowWaitingList,
+      continueAfterWaitlist: options.continueAfterWaitlist,
       intervalMs: Math.round(options.intervalSec * 1000),
       jitterMs: Math.round(options.jitterSec * 1000),
       maxAttempts: options.maxAttempts,
@@ -329,20 +346,22 @@ export default function App(): JSX.Element {
 
   const cancelReservation = useCallback(
     async (rsv: Reservation) => {
-      if (!window.confirm(`예약번호 ${rsv.rsvId} (${rsv.trainTypeName} ${rsv.trainNo}편)을 취소할까요?`)) return
+      const kind = rsv.waiting ? '예약대기' : '예약'
+      if (!window.confirm(`${kind}번호 ${rsv.rsvId} (${rsv.trainTypeName} ${rsv.trainNo}편)을 취소할까요?`)) return
       setReservationsBusy(true)
       try {
         await korail.cancelReservation(rsv)
-        pushLog({ ts: Date.now(), level: 'warn', message: `예약 취소: ${rsv.rsvId}` })
+        pushLog({ ts: Date.now(), level: 'warn', message: `${kind} 취소: ${rsv.rsvId}` })
         await refreshReservations()
         if (booking.reservation?.rsvId === rsv.rsvId) setBooking((b) => ({ ...b, status: b.status === 'success' ? 'idle' : b.status, reservation: null }))
+        if (booking.waitlist.some((w) => w.rsvId === rsv.rsvId)) setBooking(await korail.forgetWaitlist(rsv.rsvId))
       } catch (e) {
         showToast(`예약 취소 실패: ${errorMessage(e)}`)
       } finally {
         setReservationsBusy(false)
       }
     },
-    [booking.reservation?.rsvId, pushLog, refreshReservations, showToast],
+    [booking.reservation?.rsvId, booking.waitlist, pushLog, refreshReservations, showToast],
   )
 
   const toggleSelected = useCallback((key: string) => {
@@ -422,9 +441,10 @@ export default function App(): JSX.Element {
           </aside>
           <section className="content">
             <StatusBar state={booking} />
-            {booking.reservation && (
+            {highlight && (
               <ReservationPanel
-                highlight={booking.reservation}
+                highlight={highlight}
+                stillSearching={!booking.reservation && running}
                 reservations={reservations}
                 busy={reservationsBusy}
                 onRefresh={() => void refreshReservations()}
@@ -444,7 +464,7 @@ export default function App(): JSX.Element {
               running={running}
             />
             <LogPanel logs={logs} onClear={() => setLogs([])} />
-            {!booking.reservation && (
+            {!highlight && (
               <ReservationPanel
                 highlight={null}
                 reservations={reservations}
@@ -460,9 +480,9 @@ export default function App(): JSX.Element {
 
       <footer className="statusline">
         <span>
-          코레일톡 API · {appInfo?.host ?? ''} · v{appInfo?.version ?? ''}
+          코레일+ API · {appInfo?.host ?? ''} · v{appInfo?.version ?? ''}
         </span>
-        <span>예약 후 결제는 코레일톡 앱에서 결제기한 내에 직접 진행하세요.</span>
+        <span>예약 후 결제는 코레일+ 앱에서 결제기한 내에 직접 진행하세요. 예약대기는 좌석이 배정된 뒤에 결제합니다.</span>
       </footer>
 
       {toast && (

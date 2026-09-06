@@ -55,7 +55,30 @@ export function parseTrain(raw: Raw): Train {
 }
 
 /** Convert a `train_info` entry of ReservationView into a Reservation. */
+/** A yyyyMMdd that is empty or all zeros: Korail's way of saying "no payment deadline (yet)". */
+export function isBlankDate(v: string): boolean {
+  return v.trim() === '' || /^0+$/.test(v.trim())
+}
+
+/** Keys Korail has used to carry the waiting-list sequence number of a 예약대기 entry. */
+const WAITLIST_SEQ_KEYS = ['h_wct_no', 'h_wait_no', 'h_rsv_wait_no', 'h_wct_seq']
+
+/**
+ * Waiting-list (예약대기) entries come back from ReservationView like reservations, but with no
+ * payment deadline (h_ntisu_lmt_dt = 00000000): a deadline only appears once a seat is assigned.
+ */
+export function isWaitingListEntry(raw: Raw): boolean {
+  for (const k of WAITLIST_SEQ_KEYS) {
+    const v = str(raw, k).trim()
+    if (v !== '' && !/^0+$/.test(v)) return true
+  }
+  return isBlankDate(str(raw, 'h_ntisu_lmt_dt'))
+}
+
 export function parseReservation(raw: Raw): Reservation {
+  const waiting = isWaitingListEntry(raw)
+  const limitDate = str(raw, 'h_ntisu_lmt_dt')
+  const noDeadline = isBlankDate(limitDate)
   return {
     rsvId: str(raw, 'h_pnr_no'),
     journeyNo: str(raw, 'txtJrnySqno', '001'),
@@ -72,10 +95,10 @@ export function parseReservation(raw: Raw): Reservation {
     depTime: str(raw, 'h_dpt_tm'),
     arrTime: str(raw, 'h_arv_tm'),
     seatCount: int(raw, 'h_tot_seat_cnt', 0),
-    buyLimitDate: str(raw, 'h_ntisu_lmt_dt'),
-    buyLimitTime: str(raw, 'h_ntisu_lmt_tm'),
+    buyLimitDate: noDeadline ? '' : limitDate,
+    buyLimitTime: noDeadline ? '' : str(raw, 'h_ntisu_lmt_tm'),
     price: int(raw, 'h_rsv_amt', 0),
-    waiting: false,
+    waiting,
   }
 }
 

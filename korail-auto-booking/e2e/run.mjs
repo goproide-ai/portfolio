@@ -102,6 +102,56 @@ try {
   // Logout returns to the login card.
   await page.click('text=로그아웃')
   await page.waitForSelector('.login-card', { timeout: 10000 })
+
+  // ---------------------------------------------------------------------------------------------
+  // Waiting-list scenario (the case a real user hit): the only target is sold out with a waiting
+  // list. The engine must join it once, report it as a 예약대기 with no deadline (never "0000-00-00
+  // 기한 경과"), keep polling, and reserve the real seat that opens later.
+  await page.fill('input[autocomplete="username"]', MOCK_USER.id)
+  await page.fill('input[type="password"]', MOCK_USER.password)
+  await page.click('button[type="submit"]')
+  await page.waitForSelector('.session strong', { timeout: 10000 })
+  await page.click('text=열차 조회')
+  await page.waitForSelector('table.trains tbody tr', { timeout: 10000 })
+  await page.click('button:has-text("선택 해제")').catch(() => undefined)
+  await page.check('input[aria-label="KTX-산천 005 선택"]')
+  await page.check('label:has-text("좌석이 없으면 예약대기라도 신청") input')
+  assert(await page.isChecked('label:has-text("예약대기 등록 후에도 빈 좌석 계속 찾기") input'), 'continue-after-waitlist is on by default')
+  await page.fill('input[type="number"] >> nth=4', '1')
+  await page.fill('input[type="number"] >> nth=5', '0')
+  // Train 005 gets a real seat two polls after the waiting list is joined.
+  mock.state.train005OpensAfter = mock.state.scheduleCalls + 2
+  await page.click('text=자동 예매 시작')
+  await page.waitForSelector('.reservation-card.highlight.waiting', { timeout: 20000 })
+  await page.screenshot({ path: join(shots, '06-waitlisted.png') })
+  const waitTitle = await page.textContent('.reservation-card.highlight.waiting h2')
+  assert(waitTitle.includes('예약대기 등록됨'), `waiting-list title: ${waitTitle}`)
+  const waitBox = await page.textContent('.reservation-card.highlight.waiting .success-box')
+  assert(waitBox.includes('예약대기번호'), 'waiting-list box shows the waiting number')
+  assert(waitBox.includes('좌석 배정 대기 중'), 'waiting-list box explains there is no deadline yet')
+  assert(!waitBox.includes('0000') && !waitBox.includes('기한 경과'), `no bogus deadline: ${waitBox}`)
+  assert(waitBox.includes('코레일+') && !waitBox.includes('코레일톡'), 'wording refers to the 코레일+ app')
+  assert((await page.$('.pill.waiting')) !== null, 'status bar shows the waiting-list pill')
+  assert(mock.state.reservations.filter((r) => r.h_wct_no).length === 1, 'one waiting-list entry on the server')
+
+  await page.waitForSelector('.reservation-card.highlight:not(.waiting)', { timeout: 30000 })
+  await page.screenshot({ path: join(shots, '07-seat-after-waitlist.png') })
+  const seatBox = await page.textContent('.reservation-card.highlight .success-box')
+  assert(seatBox.includes('예약번호') && seatBox.includes('KTX-산천 005편'), `real seat reserved on 005: ${seatBox}`)
+  assert(mock.state.reservations.filter((r) => r.h_wct_no).length === 1, 'the waiting list was joined exactly once')
+  assert(mock.state.reservations.filter((r) => !r.h_wct_no).length === 1, 'one real reservation')
+  const log2 = await page.textContent('[data-testid="log"]')
+  assert(log2.includes('예약대기 등록 완료') && log2.includes('예약대기 1건'), 'log explains the waiting list and reminds to cancel it')
+  await page.waitForFunction(() => document.querySelectorAll('.reservations li').length === 2, null, { timeout: 10000 })
+  assert((await page.$$('.reservations .tag.waiting')).length === 1, 'the list tags the waiting-list entry')
+  const listText = await page.textContent('.reservations')
+  assert(!listText.includes('0000-00-00') && !listText.includes('기한 경과'), `list shows no bogus deadline: ${listText}`)
+
+  await page.click('.reservations button:has-text("예약대기 취소")')
+  await page.waitForFunction(() => document.querySelectorAll('.reservations li').length === 1, null, { timeout: 10000 })
+  await page.click('.reservations button:has-text("예약 취소")')
+  await page.waitForFunction(() => document.querySelectorAll('.reservations li').length === 0, null, { timeout: 10000 })
+  assert(mock.state.reservations.length === 0, 'both entries cancelled on the server')
   console.log('E2E OK — requests:', mock.state.log.length, 'schedule calls:', mock.state.scheduleCalls)
 } finally {
   await app.close()

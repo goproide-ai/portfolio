@@ -24,7 +24,7 @@ function baseConfig(over: Partial<BookingConfig> = {}): BookingConfig {
   return {
     dep: '서울', arr: '부산', date: '20260910', timeFrom: '08:00', timeTo: '10:00', categories: [],
     passengers: { adult: 1, child: 0, toddler: 0, senior: 0 }, targetTrainKeys: [], seatPreference: 'GENERAL_FIRST',
-    allowWaitingList: false, intervalMs: 2000, jitterMs: 0, maxAttempts: 0, ...over,
+    allowWaitingList: false, continueAfterWaitlist: true, intervalMs: 2000, jitterMs: 0, maxAttempts: 0, ...over,
   }
 }
 
@@ -393,6 +393,80 @@ describe('BookingEngine', () => {
     await vi.advanceTimersByTimeAsync(0)
     await vi.advanceTimersByTimeAsync(1000)
     expect(client.searchWindow.mock.calls[1][0]).toMatchObject({ timeFrom: '0800', timeTo: '1000' })
+    engine.stop()
+  })
+
+  it('keeps looking for a real seat after joining a waiting list, without re-joining it', async () => {
+    const client = fakeClient()
+    const soldOutWithWait = { ...train('001', '080000', false), hasWaitingList: true, waitReserveFlag: 9 }
+    client.searchWindow
+      .mockResolvedValueOnce([soldOutWithWait])
+      .mockResolvedValueOnce([soldOutWithWait])
+      .mockResolvedValue([train('001', '080000', true)])
+    client.reserve
+      .mockResolvedValueOnce({ pnrNo: 'W1', seatClass: '1', waiting: true, reservation: null })
+      .mockResolvedValueOnce({ pnrNo: 'R1', seatClass: '1', waiting: false, reservation: null })
+    const { engine, logs } = makeEngine(client)
+    const waitlisted = vi.fn()
+    engine.on('waitlisted', waitlisted)
+    engine.start(baseConfig({ allowWaitingList: true, intervalMs: 1000 }))
+    await vi.advanceTimersByTimeAsync(0)
+    // Round 1: joined the waiting list, still running.
+    expect(waitlisted).toHaveBeenCalledTimes(1)
+    expect(engine.getState().status).toBe('running')
+    expect(engine.getState().waitlist.map((r) => r.rsvId)).toEqual(['W1'])
+    expect(engine.getState().reservation).toBeNull()
+    await vi.advanceTimersByTimeAsync(1000)
+    // Round 2: same sold-out train — no second waiting-list request.
+    expect(client.reserve).toHaveBeenCalledTimes(1)
+    await vi.advanceTimersByTimeAsync(1000)
+    await engine.whenDone()
+    // Round 3: a real seat opened — reserved and finished, with a reminder about the waiting list.
+    expect(client.reserve).toHaveBeenCalledTimes(2)
+    expect(client.reserve.mock.calls[1][3]).toBe(false) // waiting list not allowed for an already-joined train
+    expect(engine.getState().status).toBe('success')
+    expect(engine.getState().reservation?.rsvId).toBe('R1')
+    expect(engine.getState().reservation?.waiting).toBe(false)
+    expect(logs.some((l) => l.level === 'warn' && l.message.includes('예약대기 1건') && l.message.includes('W1'))).toBe(true)
+  })
+
+  it('ends the run on a waiting list when continueAfterWaitlist is off', async () => {
+    const client = fakeClient()
+    client.searchWindow.mockResolvedValue([{ ...train('001', '080000', false), hasWaitingList: true, waitReserveFlag: 9 }])
+    client.reserve.mockResolvedValue({ pnrNo: 'W1', seatClass: '1', waiting: true, reservation: null })
+    const { engine } = makeEngine(client)
+    engine.start(baseConfig({ allowWaitingList: true, continueAfterWaitlist: false }))
+    await vi.advanceTimersByTimeAsync(0)
+    await engine.whenDone()
+    expect(engine.getState().status).toBe('success')
+    expect(engine.getState().reservation?.waiting).toBe(true)
+    expect(engine.getState().waitlist).toEqual([])
+  })
+
+  it('does not re-join a waiting list this account already holds', async () => {
+    const client = fakeClient()
+    client.reservations.mockResolvedValue([{ ...reservation, rsvId: 'OLD', trainNo: '001', runDate: '20260910', depCode: '0001', arrCode: '0020', waiting: true, buyLimitDate: '', buyLimitTime: '' }])
+    client.searchWindow.mockResolvedValue([{ ...train('001', '080000', false), hasWaitingList: true, waitReserveFlag: 9 }])
+    const { engine, logs } = makeEngine(client)
+    engine.start(baseConfig({ allowWaitingList: true, intervalMs: 1000 }))
+    await vi.advanceTimersByTimeAsync(0)
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(client.reserve).not.toHaveBeenCalled()
+    expect(logs.some((l) => l.message.includes('기존 예약대기 1건'))).toBe(true)
+    engine.stop()
+  })
+
+  it('forgets a waiting list the user cancelled without re-joining it', async () => {
+    const client = fakeClient()
+    client.searchWindow.mockResolvedValue([{ ...train('001', '080000', false), hasWaitingList: true, waitReserveFlag: 9 }])
+    client.reserve.mockResolvedValue({ pnrNo: 'W1', seatClass: '1', waiting: true, reservation: null })
+    const { engine } = makeEngine(client)
+    engine.start(baseConfig({ allowWaitingList: true, intervalMs: 1000 }))
+    await vi.advanceTimersByTimeAsync(0)
+    expect(engine.getState().waitlist).toHaveLength(1)
+    expect(engine.forgetWaitlist('W1').waitlist).toEqual([])
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(client.reserve).toHaveBeenCalledTimes(1)
     engine.stop()
   })
 

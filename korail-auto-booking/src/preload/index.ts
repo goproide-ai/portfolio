@@ -18,6 +18,7 @@ const bridge: KorailBridge = {
   startBooking: (config: BookingConfig) => ipcRenderer.invoke('booking:start', config),
   stopBooking: () => ipcRenderer.invoke('booking:stop'),
   getBookingState: () => ipcRenderer.invoke('booking:state'),
+  forgetWaitlist: (rsvId: string) => ipcRenderer.invoke('booking:forgetWaitlist', rsvId),
   getReservations: () => ipcRenderer.invoke('reservations:list'),
   cancelReservation: (rsv: Reservation) => ipcRenderer.invoke('reservations:cancel', rsv),
   getSettings: () => ipcRenderer.invoke('settings:get'),

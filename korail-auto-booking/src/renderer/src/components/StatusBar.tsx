@@ -15,17 +15,26 @@ const LABELS: Record<BookingState['status'], string> = {
   error: '오류로 중지됨',
 }
 
+function label(state: BookingState): string {
+  if (state.status === 'success' && state.reservation?.waiting) return '예약대기 등록됨 (좌석 미확보)'
+  return LABELS[state.status]
+}
+
 export function StatusBar({ state }: Props): JSX.Element {
   const now = useNow(state.status === 'running')
   const nextIn = state.nextCheckAt ? Math.max(0, Math.ceil((state.nextCheckAt - now) / 1000)) : null
+  const waitlisted = state.waitlist.length
 
   return (
     <section className={`card statusbar status-${state.status}`}>
       <div className="status-main">
         <span className={`pill ${state.status}`}>
           {state.status === 'running' && <span className="spinner" aria-hidden="true" />}
-          {LABELS[state.status]}
+          {label(state)}
         </span>
+        {waitlisted > 0 && state.status !== 'success' && (
+          <span className="pill waiting">예약대기 {waitlisted}건 등록{state.status === 'running' ? ' · 빈 좌석 계속 찾는 중' : ''}</span>
+        )}
         {state.error && <span className="status-error">{state.error}</span>}
       </div>
       <dl className="stats">

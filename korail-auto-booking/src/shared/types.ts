@@ -114,6 +114,8 @@ export interface BookingConfig extends SearchRequest {
   seatPreference: SeatPreference
   /** 좌석이 없을 때 예약대기라도 잡을지 */
   allowWaitingList: boolean
+  /** 예약대기를 등록한 뒤에도 (좌석이 배정될 때까지) 빈 좌석을 계속 찾을지. 기본 true. */
+  continueAfterWaitlist: boolean
   /** 재조회 간격 (ms) */
   intervalMs: number
   /** 간격에 더할 랜덤 지터 최대값 (ms) */
@@ -130,7 +132,10 @@ export interface BookingState {
   startedAt: number | null
   lastCheckedAt: number | null
   nextCheckAt: number | null
+  /** 좌석이 확보된 예약 (예약대기만 등록된 경우에는 continueAfterWaitlist=false 일 때만 여기에 들어간다) */
   reservation: Reservation | null
+  /** 이번 실행에서 등록한 예약대기 목록 — 좌석이 확보된 것이 아니다. */
+  waitlist: Reservation[]
   error: string | null
   /** 마지막 조회에서 확인한 열차 목록 */
   trains: Train[]
@@ -168,6 +173,7 @@ export interface AppSettings {
   lastSearch: Partial<SearchRequest> | null
   seatPreference: SeatPreference
   allowWaitingList: boolean
+  continueAfterWaitlist: boolean
   intervalMs: number
   jitterMs: number
   maxAttempts: number
@@ -194,6 +200,8 @@ export interface KorailBridge {
   startBooking(config: BookingConfig): Promise<BookingState>
   stopBooking(): Promise<BookingState>
   getBookingState(): Promise<BookingState>
+  /** Drop a cancelled 예약대기 from the running engine's state (the train is not re-joined). */
+  forgetWaitlist(rsvId: string): Promise<BookingState>
   getReservations(): Promise<Reservation[]>
   cancelReservation(rsv: Reservation): Promise<boolean>
   getSettings(): Promise<AppSettings>

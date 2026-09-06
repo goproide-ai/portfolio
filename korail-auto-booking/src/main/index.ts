@@ -192,6 +192,9 @@ function bootstrap(): void {
   engine.on('success', (reservation) => {
     if (settings.get().notifyOnSuccess) notifyReservation(reservation, mainWindow, showMainWindow)
   })
+  engine.on('waitlisted', (reservation) => {
+    if (settings.get().notifyOnSuccess) notifyReservation(reservation, mainWindow, showMainWindow)
+  })
 
   registerIpc({ client, engine, settings, credentials, session: sessionState })
 

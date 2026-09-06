@@ -29,7 +29,9 @@ export function notifyReservation(rsv: Reservation, win: BrowserWindow | null, o
     `${rsv.trainTypeName} ${rsv.trainNo}편 ${rsv.depName} ${formatTime(rsv.depTime)} → ${rsv.arrName} ${formatTime(rsv.arrTime)}\n` +
     `예약번호 ${rsv.rsvId}` +
     (rsv.buyLimitTime ? ` · 결제기한 ${formatDeadline(rsv)}` : '') +
-    '\n코레일톡에서 결제해야 예약이 확정됩니다.'
+    (rsv.waiting
+      ? '\n좌석이 확보된 것은 아닙니다. 좌석이 배정되면 코레일+ 앱에서 결제기한이 안내됩니다.'
+      : '\n코레일+ 앱에서 결제기한 안에 결제해야 예약이 확정됩니다.')
   notify(rsv.waiting ? '예약대기 등록 완료' : '열차 예약 성공!', body, win, onClick)
 }
 

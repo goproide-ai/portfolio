@@ -1,4 +1,4 @@
-// Minimal stand-in for the 코레일톡 API used by the end-to-end test.
+// Minimal stand-in for the 코레일+ (구 코레일톡) API used by the end-to-end test.
 // Implements just enough of the protocol for login → search → reserve → cancel.
 import { createDecipheriv } from 'node:crypto'
 import { createServer } from 'node:http'
@@ -39,11 +39,13 @@ function train(no, name, group, clsf, depTime, arrTime, date, gen, spe, wait = '
 
 /**
  * Scenario: every train is sold out for the first `soldOutRounds` schedule calls;
- * after that train 003 (09:00) gets a general seat.
+ * after that train 003 (09:00) gets a general seat. Train 005 (10:00) is sold out with a waiting
+ * list until `state.train005OpensAfter` schedule calls have been made (Infinity = never).
  */
 export function startMockKorail({ soldOutRounds = 2 } = {}) {
   const state = {
     scheduleCalls: 0,
+    train005OpensAfter: Infinity,
     reserveCalls: 0,
     reservations: [],
     sessionKey: null,
@@ -115,7 +117,7 @@ export function startMockKorail({ soldOutRounds = 2 } = {}) {
         train('001', 'KTX', '100', '00', '080000', '103000', date, '13', '13'),
         train('1001', 'ITX-새마을', '101', '08', '083000', '134000', date, '13', '00'),
         train('003', 'KTX', '100', '00', '090000', '113000', date, seatOpen, '13', '9'),
-        train('005', 'KTX-산천', '100', '07', '100000', '124000', date, '13', '13'),
+        train('005', 'KTX-산천', '100', '07', '100000', '124000', date, state.scheduleCalls > state.train005OpensAfter ? '11' : '13', '13', '9'),
         train('1203', '무궁화호', '102', '02', '110000', '163000', date, '11', '00'),
         train('007', 'KTX', '100', '00', '130000', '153000', date, '11', '11'),
       ].filter((t) => t.h_dpt_tm >= hour)
@@ -127,15 +129,25 @@ export function startMockKorail({ soldOutRounds = 2 } = {}) {
       // The session is the cookie (already checked above); the app sends the static Key, not the login one.
       if (p('Key') !== 'korail1234567890') return fail('P058', '로그인 후 이용하세요.')
       const no = p('txtTrnNo1')
-      const open = no === '1203' || no === '007' || (no === '003' && state.scheduleCalls > soldOutRounds)
-      if (!open) return fail('ERR211161', '좌석이 매진되었습니다.')
+      const open = no === '1203' || no === '007' || (no === '003' && state.scheduleCalls > soldOutRounds) || (no === '005' && state.scheduleCalls > state.train005OpensAfter)
+      // A waiting-list registration (txtJobId 1102) has no payment deadline until a seat is assigned;
+      // the real server reports it as 00000000 / 235900 plus a waiting sequence number.
+      const waiting = p('txtJobId') === '1102'
+      const hasWaitingList = no === '003' || no === '005'
+      if (waiting) {
+        if (!hasWaitingList) return fail('ERR211161', '좌석이 매진되었습니다.')
+        if (state.reservations.some((r) => r.h_trn_no === no && r.h_wct_no)) return fail('WRR800017', '이미 예약대기 신청한 열차입니다.')
+      } else if (!open) {
+        return fail('ERR211161', '좌석이 매진되었습니다.')
+      }
       const pnr = String(10000 + state.reservations.length + 1)
-      const now = new Date(Date.now() + 20 * 60 * 1000)
+      // Korail reports deadlines as KST wall-clock; render "20 minutes from now" in KST whatever the host zone.
+      const now = new Date(Date.now() + 20 * 60 * 1000 + 9 * 60 * 60 * 1000)
       const pad = (n) => String(n).padStart(2, '0')
       state.reservations.push({
         h_pnr_no: pnr,
         h_trn_clsf_cd: p('txtTrnClsfCd1'),
-        h_trn_clsf_nm: no === '1203' ? '무궁화호' : 'KTX',
+        h_trn_clsf_nm: no === '1203' ? '무궁화호' : no === '005' ? 'KTX-산천' : 'KTX',
         h_trn_no: no,
         h_dpt_rs_stn_nm: '서울',
         h_dpt_rs_stn_cd: '0001',
@@ -145,11 +157,12 @@ export function startMockKorail({ soldOutRounds = 2 } = {}) {
         h_dpt_tm: p('txtDptTm1'),
         h_arv_tm: '113000',
         h_tot_seat_cnt: String(p('txtTotPsgCnt') ?? '1').padStart(3, '0'),
-        h_ntisu_lmt_dt: `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}`,
-        h_ntisu_lmt_tm: `${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`,
+        h_ntisu_lmt_dt: waiting ? '00000000' : `${now.getUTCFullYear()}${pad(now.getUTCMonth() + 1)}${pad(now.getUTCDate())}`,
+        h_ntisu_lmt_tm: waiting ? '235900' : `${pad(now.getUTCHours())}${pad(now.getUTCMinutes())}${pad(now.getUTCSeconds())}`,
         h_rsv_amt: '00059800',
+        ...(waiting ? { h_wct_no: '1' } : {}),
       })
-      return send({ strResult: 'SUCC', h_pnr_no: pnr, h_wct_no: '1' })
+      return send({ strResult: 'SUCC', h_pnr_no: pnr, ...(waiting ? { h_wct_no: '1' } : {}) })
     }
     if (path.endsWith('.reservation.ReservationView')) {
       if (state.reservations.length === 0) return fail('P100', '예약 내역이 없습니다.')

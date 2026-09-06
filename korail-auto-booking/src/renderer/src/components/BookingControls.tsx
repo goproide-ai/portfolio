@@ -4,6 +4,7 @@ import type { BookingStatus, SeatPreference } from '../../../shared/types'
 export interface BookingOptions {
   seatPreference: SeatPreference
   allowWaitingList: boolean
+  continueAfterWaitlist: boolean
   intervalSec: number
   jitterSec: number
   maxAttempts: number
@@ -52,6 +53,17 @@ export function BookingControls({ options, onChange, running, status, canStart, 
         <input type="checkbox" checked={options.allowWaitingList} onChange={(e) => set('allowWaitingList', e.target.checked)} disabled={running} />
         <span>좌석이 없으면 예약대기라도 신청</span>
       </label>
+      {options.allowWaitingList && (
+        <>
+          <label className="check sub">
+            <input type="checkbox" checked={options.continueAfterWaitlist} onChange={(e) => set('continueAfterWaitlist', e.target.checked)} disabled={running} />
+            <span>예약대기 등록 후에도 빈 좌석 계속 찾기</span>
+          </label>
+          <p className="hint">
+            예약대기는 좌석을 확보한 것이 아니라 취소표 순번을 받는 것입니다. 좌석이 배정되면 코레일+ 앱에서 결제기한이 안내되며, 그때 결제해야 확정됩니다.
+          </p>
+        </>
+      )}
 
       <div className="row">
         <label className="field">

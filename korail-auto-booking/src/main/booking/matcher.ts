@@ -18,9 +18,12 @@ export function selectTargets(trains: Train[], config: BookingConfig): Train[] {
   })
 }
 
-/** Targets that can be reserved right now, ordered by departure time. */
-export function selectCandidates(trains: Train[], config: BookingConfig): Train[] {
+/**
+ * Targets that can be reserved right now, ordered by departure time. Trains whose waiting list was
+ * already joined (`waitlisted`) only count when they have a real seat.
+ */
+export function selectCandidates(trains: Train[], config: BookingConfig, waitlisted: ReadonlySet<string> = new Set()): Train[] {
   return selectTargets(trains, config)
-    .filter((t) => isBookable(t, config.seatPreference, config.allowWaitingList))
+    .filter((t) => isBookable(t, config.seatPreference, config.allowWaitingList && !waitlisted.has(t.key)))
     .sort((a, b) => (a.depTime < b.depTime ? -1 : a.depTime > b.depTime ? 1 : 0))
 }

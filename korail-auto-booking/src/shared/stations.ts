@@ -1,7 +1,7 @@
 /**
  * Korail passenger station names used for autocomplete. The search API takes
  * station *names*, so no codes are needed. The list is not exhaustive — users
- * can type any station name the 코레일톡 app accepts.
+ * can type any station name the 코레일+ app accepts.
  */
 export const STATIONS: string[] = [
   // 수도권

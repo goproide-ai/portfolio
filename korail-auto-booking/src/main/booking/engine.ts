@@ -31,7 +31,10 @@ export const RELOGIN_WINDOW_MS = 10 * 60_000
 export interface BookingEngineEvents {
   log: [LogEntry]
   state: [BookingState]
+  /** A seat was secured (or, with continueAfterWaitlist off, a waiting list joined) and the run ended. */
   success: [Reservation]
+  /** A waiting list was joined and the run keeps looking for a real seat. */
+  waitlisted: [Reservation]
 }
 
 export function initialState(): BookingState {
@@ -42,6 +45,7 @@ export function initialState(): BookingState {
     lastCheckedAt: null,
     nextCheckAt: null,
     reservation: null,
+    waitlist: [],
     error: null,
     trains: [],
   }
@@ -81,6 +85,7 @@ export function validateConfig(input: BookingConfig): BookingConfig {
     passengers: normalizePassengers(input.passengers),
     seatPreference: input.seatPreference ?? 'GENERAL_FIRST',
     allowWaitingList: Boolean(input.allowWaitingList),
+    continueAfterWaitlist: input.continueAfterWaitlist === undefined ? true : Boolean(input.continueAfterWaitlist),
     intervalMs,
     jitterMs,
     maxAttempts,
@@ -121,6 +126,8 @@ export class BookingEngine extends EventEmitter<BookingEngineEvents> {
   private reloginTimes: number[] = []
   /** Once the target trains are known, polling is narrowed to their departure span. */
   private span: { timeFrom: string; timeTo: string } | null = null
+  /** Train keys whose waiting list this account already joined: only a real seat counts for them. */
+  private waitlisted = new Set<string>()
 
   constructor(deps: EngineDeps) {
     super()
@@ -133,7 +140,14 @@ export class BookingEngine extends EventEmitter<BookingEngineEvents> {
   }
 
   getState(): BookingState {
-    return { ...this.state, trains: [...this.state.trains] }
+    return { ...this.state, trains: [...this.state.trains], waitlist: [...this.state.waitlist] }
+  }
+
+  /** The user cancelled a 예약대기 in the UI: drop it from the state (its train is not re-joined). */
+  forgetWaitlist(rsvId: string): BookingState {
+    this.state.waitlist = this.state.waitlist.filter((r) => r.rsvId !== rsvId)
+    this.emitState()
+    return this.getState()
   }
 
   getConfig(): BookingConfig | null {
@@ -153,6 +167,7 @@ export class BookingEngine extends EventEmitter<BookingEngineEvents> {
     this.unconfirmed = null
     this.reloginTimes = []
     this.span = null
+    this.waitlisted = new Set()
     this.state = { ...initialState(), status: 'running', startedAt: this.deps.now() }
     const { from, to } = windowBounds(config.timeFrom, config.timeTo)
     this.log(
@@ -205,11 +220,12 @@ export class BookingEngine extends EventEmitter<BookingEngineEvents> {
           if (signal.aborted) return
           this.unconfirmed = null
           if (match) {
-            this.commitReservation(pending, match, match.waiting, '네트워크 오류 후 예약 확인됨')
-            return
+            if (this.settle(pending, match, match.waiting, config, '네트워크 오류 후 예약 확인됨')) return
+          } else {
+            this.log('info', `${describeTrain(pending)} 예약은 서버에 남아 있지 않습니다. 계속 진행합니다.`)
           }
-          this.log('info', `${describeTrain(pending)} 예약은 서버에 남아 있지 않습니다. 계속 진행합니다.`)
         }
+        if (this.state.attempts === 1 && config.allowWaitingList) await this.noteExistingWaitlists()
 
         const trains = await this.deps.client.searchWindow({
           dep: config.dep,
@@ -227,7 +243,7 @@ export class BookingEngine extends EventEmitter<BookingEngineEvents> {
         backoffMs = 0
 
         const targets = selectTargets(trains, config)
-        const candidates = selectCandidates(trains, config)
+        const candidates = selectCandidates(trains, config, this.waitlisted)
         this.log(
           candidates.length > 0 ? 'success' : 'info',
           `#${this.state.attempts} 조회 — 시간대 내 ${trains.length}편, 대상 ${targets.length}편, 예약 가능 ${candidates.length}편`,
@@ -247,14 +263,16 @@ export class BookingEngine extends EventEmitter<BookingEngineEvents> {
 
         for (const train of candidates) {
           if (signal.aborted) return
-          this.log('info', `예약 시도: ${describeTrain(train)} (${seatSummary(train)})`)
+          const allowWaiting = config.allowWaitingList && !this.waitlisted.has(train.key)
+          this.log('info', `${allowWaiting && !train.hasGeneralSeat && !train.hasSpecialSeat ? '예약대기 신청' : '예약 시도'}: ${describeTrain(train)} (${seatSummary(train)})`)
           try {
-            const result = await this.deps.client.reserve(train, config.passengers, config.seatPreference, config.allowWaitingList)
+            const result = await this.deps.client.reserve(train, config.passengers, config.seatPreference, allowWaiting)
             // A stop()/start() may have fired while reserve() was in flight; do not commit into a
             // stopped or superseded run (mirrors the abort re-check at every other await site).
             if (signal.aborted) return
-            this.commitReservation(train, result.reservation ?? synthesizeReservation(train, result.pnrNo, config, result.waiting), result.waiting)
-            return
+            const reservation = result.reservation ?? synthesizeReservation(train, result.pnrNo, config, result.waiting)
+            if (this.settle(train, reservation, result.waiting, config)) return
+            continue
           } catch (e) {
             if (e instanceof SoldOutError) {
               this.log('warn', `매진: ${describeTrain(train)} — 다른 열차를 시도합니다.`)
@@ -287,8 +305,8 @@ export class BookingEngine extends EventEmitter<BookingEngineEvents> {
               }
               if (signal.aborted) return
               if (match) {
-                this.commitReservation(train, match, match.waiting, '네트워크 오류 후 예약 확인됨')
-                return
+                if (this.settle(train, match, match.waiting, config, '네트워크 오류 후 예약 확인됨')) return
+                continue
               }
               throw e
             }
@@ -347,16 +365,63 @@ export class BookingEngine extends EventEmitter<BookingEngineEvents> {
     return Math.min(MAX_ERROR_BACKOFF_MS, config.intervalMs * factor)
   }
 
+  /**
+   * Decide what a server-confirmed booking means for the run. A real seat (or a waiting list when
+   * continueAfterWaitlist is off) ends the run; otherwise the waiting list is recorded and the run
+   * keeps looking for a seat. Returns true when the run finished.
+   */
+  private settle(train: Train, reservation: Reservation, waiting: boolean, config: BookingConfig, prefix = ''): boolean {
+    if (waiting && config.continueAfterWaitlist) {
+      this.waitlisted.add(train.key)
+      if (!this.state.waitlist.some((r) => r.rsvId === reservation.rsvId)) this.state.waitlist.push({ ...reservation, waiting: true })
+      this.log(
+        'success',
+        `${prefix ? `${prefix}: ` : ''}예약대기 등록 완료 — 예약번호 ${reservation.rsvId}, ${describeTrain(train)}. ` +
+          '좌석이 확보된 것은 아닙니다. 취소표가 나와 좌석이 배정되면 코레일+ 앱에서 결제기한이 안내됩니다. 그동안 빈 좌석을 계속 찾습니다.',
+      )
+      this.emitState()
+      this.emit('waitlisted', reservation)
+      return false
+    }
+    this.commitReservation(train, reservation, waiting, prefix)
+    return true
+  }
+
   /** Record a successful reservation, finish the run, and emit success. */
   private commitReservation(train: Train, reservation: Reservation, waiting: boolean, prefix = ''): void {
-    this.state.reservation = reservation
+    this.state.reservation = { ...reservation, waiting }
     this.finish('success', null)
     this.log(
       'success',
-      `${prefix ? `${prefix}: ` : ''}${waiting ? '예약대기' : '예약'} 성공! 예약번호 ${reservation.rsvId} — ${describeTrain(train)}` +
-        (reservation.buyLimitTime ? `, 결제기한 ${formatDeadline(reservation)}` : ''),
+      waiting
+        ? `${prefix ? `${prefix}: ` : ''}예약대기 등록 완료 — 예약번호 ${reservation.rsvId}, ${describeTrain(train)}. 좌석이 배정되면 코레일+ 앱에서 결제기한이 안내됩니다.`
+        : `${prefix ? `${prefix}: ` : ''}예약 성공! 예약번호 ${reservation.rsvId} — ${describeTrain(train)}` +
+            (reservation.buyLimitTime ? `, 결제기한 ${formatDeadline(reservation)}` : ''),
     )
-    this.emit('success', reservation)
+    if (!waiting && this.state.waitlist.length > 0) {
+      this.log(
+        'warn',
+        `이번 실행에서 등록한 예약대기 ${this.state.waitlist.length}건(예약번호 ${this.state.waitlist.map((r) => r.rsvId).join(', ')})은 필요 없으면 코레일+ 앱에서 취소하세요.`,
+      )
+    }
+    this.emit('success', this.state.reservation)
+  }
+
+  /**
+   * Waiting lists this account already holds (from an earlier run or the 코레일+ app) must not be
+   * joined again; for those trains only a real seat counts. A failed lookup is not fatal.
+   */
+  private async noteExistingWaitlists(): Promise<void> {
+    let existing: Reservation[]
+    try {
+      existing = await this.deps.client.reservations()
+    } catch (e) {
+      this.log('warn', `기존 예약 목록을 확인하지 못했습니다 (${describeError(e)}). 예약대기가 이미 있는 열차에 다시 신청될 수 있습니다.`)
+      return
+    }
+    const keys = existing.filter((r) => r.waiting).map((r) => `${r.runDate}-${r.trainNo}-${r.depCode}-${r.arrCode}`)
+    for (const k of keys) this.waitlisted.add(k)
+    if (keys.length > 0) this.log('info', `기존 예약대기 ${keys.length}건 확인 — 해당 열차는 빈 좌석이 날 때만 예약합니다.`)
   }
 
   /**

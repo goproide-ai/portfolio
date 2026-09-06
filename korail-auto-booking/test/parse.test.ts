@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { extractReservationInfos, extractTrainInfos, parseReservation, parseTrain } from '../src/main/korail/parse'
+import { extractReservationInfos, extractTrainInfos, isBlankDate, isWaitingListEntry, parseReservation, parseTrain } from '../src/main/korail/parse'
 import { normalizePassengers, reservePassengerParams, searchPassengerParams } from '../src/main/korail/passengers'
 
 const rawTrain = {
@@ -69,6 +69,25 @@ describe('parseReservation', () => {
     expect(r.price).toBe(59800)
     expect(r.journeyNo).toBe('001')
     expect(r.rsvChgNo).toBe('00000')
+    expect(r.waiting).toBe(false)
+    expect(r.buyLimitDate).toBe('20260910')
+  })
+
+  it('treats an all-zero deadline as a waiting-list entry with no deadline yet', () => {
+    // Exactly what the real server returned for a 예약대기: 0000-00-00 23:59 is "not assigned", not year 0.
+    const r = parseReservation({ h_pnr_no: '320260971964871', h_tot_seat_cnt: '001', h_ntisu_lmt_dt: '00000000', h_ntisu_lmt_tm: '235900', h_rsv_amt: '00047400' })
+    expect(r.waiting).toBe(true)
+    expect(r.buyLimitDate).toBe('')
+    expect(r.buyLimitTime).toBe('')
+    expect(r.price).toBe(47400)
+  })
+
+  it('recognises a waiting-list sequence number even when a deadline is present', () => {
+    expect(isWaitingListEntry({ h_wct_no: '3', h_ntisu_lmt_dt: '20260910' })).toBe(true)
+    expect(isWaitingListEntry({ h_wct_no: '0', h_ntisu_lmt_dt: '20260910' })).toBe(false)
+    expect(isWaitingListEntry({ h_ntisu_lmt_dt: '' })).toBe(true)
+    expect(isBlankDate('00000000')).toBe(true)
+    expect(isBlankDate('20260910')).toBe(false)
   })
 
   it('flattens journeys', () => {

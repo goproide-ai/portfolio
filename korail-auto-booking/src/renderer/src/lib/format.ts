@@ -34,7 +34,8 @@ export function elapsed(from: number | null, now: number): string {
 
 /** Parse yyyyMMdd + hhmmss (Korail returns KST wall-clock) into an absolute Date, anchored to UTC+9. */
 export function deadlineDate(date: string, time: string): Date | null {
-  if (!/^\d{8}$/.test(date) || !/^\d{4,6}$/.test(time)) return null
+  // Korail sends 00000000 (no deadline yet) for waiting-list entries; that is "unknown", not year 0.
+  if (!/^\d{8}$/.test(date) || /^0+$/.test(date) || !/^\d{4,6}$/.test(time)) return null
   const y = Number(date.slice(0, 4))
   const mo = Number(date.slice(4, 6)) - 1
   const d = Number(date.slice(6, 8))

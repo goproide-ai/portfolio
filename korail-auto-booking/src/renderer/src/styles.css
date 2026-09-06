@@ -752,3 +752,30 @@ table.trains tr.excluded {
     grid-template-columns: 340px minmax(0, 1fr);
   }
 }
+
+/* Waiting-list (예약대기) states: a seat is NOT secured yet, so amber rather than green. */
+.pill.waiting {
+  background: var(--warn-bg);
+  color: var(--warn);
+}
+
+.tag.waiting {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--warn-bg);
+  color: var(--warn);
+  font-size: 12px;
+  font-weight: 600;
+  vertical-align: 1px;
+}
+
+.reservation-card.highlight.waiting {
+  border-color: #f0c674;
+  box-shadow: 0 0 0 4px rgba(196, 123, 0, 0.12), var(--shadow);
+}
+
+.check.sub {
+  margin-left: 26px;
+}

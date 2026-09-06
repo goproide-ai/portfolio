@@ -121,6 +121,7 @@ export function registerIpc(ctx: IpcContext): void {
       lastSearch: { dep: config.dep, arr: config.arr, date: config.date, timeFrom: config.timeFrom, timeTo: config.timeTo, categories: config.categories, passengers: config.passengers },
       seatPreference: config.seatPreference,
       allowWaitingList: config.allowWaitingList,
+      continueAfterWaitlist: config.continueAfterWaitlist,
       intervalMs: config.intervalMs,
       jitterMs: config.jitterMs,
       maxAttempts: config.maxAttempts,
@@ -130,6 +131,7 @@ export function registerIpc(ctx: IpcContext): void {
 
   handle('booking:stop', () => engine.stop())
   handle('booking:state', () => engine.getState())
+  handle('booking:forgetWaitlist', (rsvId: string) => engine.forgetWaitlist(String(rsvId ?? '')))
 
   handle('reservations:list', async () => {
     if (!client.loggedIn) throw new Error('먼저 로그인하세요.')

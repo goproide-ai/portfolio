@@ -32,7 +32,7 @@ export function LoginCard({ savedLogin, busy, error, onLogin, onLoginSaved, onCl
   return (
     <form className="card login-card" onSubmit={submit}>
       <h2>코레일 회원 로그인</h2>
-      <p className="muted">코레일톡과 같은 계정을 사용합니다. 입력한 정보는 코레일 서버로만 전송됩니다.</p>
+      <p className="muted">코레일+ (구 코레일톡) 앱과 같은 계정을 사용합니다. 입력한 정보는 코레일 서버로만 전송됩니다.</p>
 
       <label className="field">
         <span>회원번호 · 이메일 · 휴대폰번호</span>
