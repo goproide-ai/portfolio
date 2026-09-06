@@ -46,6 +46,8 @@ export function startMockKorail({ soldOutRounds = 2 } = {}) {
   const state = {
     scheduleCalls: 0,
     train005OpensAfter: Infinity,
+    /** ReservationWait (standby confirmation) calls, with the params the app sent. */
+    waitConfirms: [],
     reserveCalls: 0,
     reservations: [],
     sessionKey: null,
@@ -136,7 +138,7 @@ export function startMockKorail({ soldOutRounds = 2 } = {}) {
       const hasWaitingList = no === '003' || no === '005'
       if (waiting) {
         if (!hasWaitingList) return fail('ERR211161', '좌석이 매진되었습니다.')
-        if (state.reservations.some((r) => r.h_trn_no === no && r.h_wct_no)) return fail('WRR800017', '이미 예약대기 신청한 열차입니다.')
+        if (state.reservations.some((r) => r.h_trn_no === no && r.h_rsv_tp_cd === '8')) return fail('WRR800017', '이미 예약대기 신청한 열차입니다.')
       } else if (!open) {
         return fail('ERR211161', '좌석이 매진되었습니다.')
       }
@@ -160,9 +162,18 @@ export function startMockKorail({ soldOutRounds = 2 } = {}) {
         h_ntisu_lmt_dt: waiting ? '00000000' : `${now.getUTCFullYear()}${pad(now.getUTCMonth() + 1)}${pad(now.getUTCDate())}`,
         h_ntisu_lmt_tm: waiting ? '235900' : `${pad(now.getUTCHours())}${pad(now.getUTCMinutes())}${pad(now.getUTCSeconds())}`,
         h_rsv_amt: '00059800',
-        ...(waiting ? { h_wct_no: '1' } : {}),
+        // 예약 종류: 8 = 대기 (the real list also shows the placeholder deadline above).
+        h_rsv_tp_cd: waiting ? '8' : '3',
       })
-      return send({ strResult: 'SUCC', h_pnr_no: pnr, ...(waiting ? { h_wct_no: '1' } : {}) })
+      // h_wct_no is the 창구 (window) number the app feeds into payment — present on every hold.
+      return send(waiting ? { strResult: 'SUCC', h_msg_cd: 'IRR000014', h_msg_txt: '예약대기 가능합니다.', h_pnr_no: pnr, h_wct_no: '1' } : { strResult: 'SUCC', h_pnr_no: pnr, h_wct_no: '1' })
+    }
+    if (path.endsWith('.reservationWait.ReservationWait')) {
+      const hold = state.reservations.find((r) => r.h_pnr_no === p('txtPnrNo') && r.h_rsv_tp_cd === '8')
+      if (!hold) return fail('WRR800018', '예약대기 내역이 없습니다.')
+      if (p('txtSmsSndFlg') === 'Y' && !/^01\d{8,9}$/.test(p('txtCpNo') ?? '')) return fail('WRR800019', '휴대폰 번호를 확인하세요.')
+      state.waitConfirms.push({ pnr: p('txtPnrNo'), classChange: p('txtPsrmClChgFlg'), sms: p('txtSmsSndFlg'), phone: p('txtCpNo') ?? '' })
+      return send({ strResult: 'SUCC', h_msg_cd: 'IRZ000003', h_msg_txt: '예약대기 신청이 완료되었습니다.' })
     }
     if (path.endsWith('.reservation.ReservationView')) {
       if (state.reservations.length === 0) return fail('P100', '예약 내역이 없습니다.')

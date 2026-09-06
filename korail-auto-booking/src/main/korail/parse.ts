@@ -60,25 +60,26 @@ export function isBlankDate(v: string): boolean {
   return v.trim() === '' || /^0+$/.test(v.trim())
 }
 
-/** Keys Korail has used to carry the waiting-list sequence number of a 예약대기 entry. */
-const WAITLIST_SEQ_KEYS = ['h_wct_no', 'h_wait_no', 'h_rsv_wait_no', 'h_wct_seq']
+/** h_rsv_tp_cd (예약 종류) value for 대기, per the korail2 / letskorail code tables. */
+const RESERVATION_TYPE_WAITING = '8'
 
 /**
  * Waiting-list (예약대기) entries come back from ReservationView like reservations, but with no
- * payment deadline (h_ntisu_lmt_dt = 00000000): a deadline only appears once a seat is assigned.
+ * payment deadline yet: a blank/zero h_ntisu_lmt_dt or the 235959 sentinel time (the rule every
+ * Korail automation client uses), or an explicit 대기 reservation type. A deadline only appears
+ * once a seat is assigned. (h_wct_no is the 창구 number used for payment, not a waiting marker.)
  */
 export function isWaitingListEntry(raw: Raw): boolean {
-  for (const k of WAITLIST_SEQ_KEYS) {
-    const v = str(raw, k).trim()
-    if (v !== '' && !/^0+$/.test(v)) return true
-  }
-  return isBlankDate(str(raw, 'h_ntisu_lmt_dt'))
+  if (str(raw, 'h_rsv_tp_cd').trim() === RESERVATION_TYPE_WAITING) return true
+  if (isBlankDate(str(raw, 'h_ntisu_lmt_dt'))) return true
+  return str(raw, 'h_ntisu_lmt_tm').trim() === '235959'
 }
 
 export function parseReservation(raw: Raw): Reservation {
   const waiting = isWaitingListEntry(raw)
   const limitDate = str(raw, 'h_ntisu_lmt_dt')
-  const noDeadline = isBlankDate(limitDate)
+  // A waiting entry's date/time are placeholders (00000000 / 235959), never a real deadline.
+  const noDeadline = waiting || isBlankDate(limitDate)
   return {
     rsvId: str(raw, 'h_pnr_no'),
     journeyNo: str(raw, 'txtJrnySqno', '001'),

@@ -18,7 +18,7 @@ interface Props {
 
 function Deadline({ rsv, now }: { rsv: Reservation; now: number }): JSX.Element {
   if (rsv.waiting) {
-    return <span className="muted">좌석 배정 대기 중 — 좌석이 배정되면 코레일+ 앱에서 결제기한이 안내됩니다</span>
+    return <span className="muted">좌석 배정 대기 중 — 결제기한은 좌석이 배정된 뒤 코레일+ 앱에 표시됩니다</span>
   }
   const d = deadlineDate(rsv.buyLimitDate, rsv.buyLimitTime)
   if (!d) return <span className="muted">결제기한 정보 없음 — 코레일+ 앱에서 확인하세요</span>
@@ -34,8 +34,10 @@ function Notice({ rsv, stillSearching }: { rsv: Reservation; stillSearching: boo
   if (rsv.waiting) {
     return (
       <p className="notice">
-        <strong>예약대기는 좌석을 확보한 것이 아닙니다.</strong> 코레일+ 앱의 <strong>예약대기 목록</strong>(일반 예약승차권 목록과는 별도 화면)에서 확인할 수
-        있으며, 취소표가 나와 좌석이 배정되면 코레일+ 알림과 함께 결제기한이 안내됩니다. 그때 결제해야 승차권이 확정됩니다.
+        <strong>예약대기는 좌석을 확보한 것이 아니라</strong> 취소표가 나오면 신청 순서대로 좌석을 배정받는 신청입니다. 코레일+ 앱에서 <strong>결제 전 예약을
+        조회하는 화면</strong>(예약 승차권 조회·예약 내역 등, 메뉴 이름은 앱 버전에 따라 다를 수 있음)에 다른 미결제 예약과 함께 표시되며, 결제 완료 승차권
+        목록에는 나오지 않습니다. 좌석이 배정되기 전에는 결제기한이 없고, 배정되면 코레일+ 앱(알림을 신청한 경우 문자·카카오톡)으로 결제기한이 안내됩니다. 그
+        기한 안에 결제해야 승차권이 확정됩니다.
         {stillSearching ? ' 이 앱은 좌석이 배정될 때까지 빈 좌석을 계속 찾습니다. 빈 좌석을 예약하면 이 예약대기는 코레일+ 앱에서 취소하세요.' : ''}
       </p>
     )

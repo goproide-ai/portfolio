@@ -5,6 +5,7 @@ export interface BookingOptions {
   seatPreference: SeatPreference
   allowWaitingList: boolean
   continueAfterWaitlist: boolean
+  waitlistSmsPhone: string
   intervalSec: number
   jitterSec: number
   maxAttempts: number
@@ -59,8 +60,21 @@ export function BookingControls({ options, onChange, running, status, canStart, 
             <input type="checkbox" checked={options.continueAfterWaitlist} onChange={(e) => set('continueAfterWaitlist', e.target.checked)} disabled={running} />
             <span>예약대기 등록 후에도 빈 좌석 계속 찾기</span>
           </label>
+          <label className="field sub">
+            <span>좌석 배정 알림 받을 휴대폰 번호 (선택, 문자·카카오톡)</span>
+            <input
+              type="tel"
+              inputMode="numeric"
+              placeholder="010-1234-5678"
+              value={options.waitlistSmsPhone}
+              onChange={(e) => set('waitlistSmsPhone', e.target.value.replace(/[^\d-]/g, '').slice(0, 13))}
+              disabled={running}
+              aria-label="좌석 배정 알림 휴대폰 번호"
+            />
+          </label>
           <p className="hint">
-            예약대기는 좌석을 확보한 것이 아니라 취소표 순번을 받는 것입니다. 좌석이 배정되면 코레일+ 앱에서 결제기한이 안내되며, 그때 결제해야 확정됩니다.
+            예약대기는 좌석을 확보한 것이 아니라 취소표가 나오면 신청 순서대로 배정받는 신청입니다. 코레일+ 앱의 예약 내역(미결제 예약 조회)에서 확인되며, 좌석이
+            배정되면 결제기한이 생기고 그때 결제해야 확정됩니다. 번호를 넣으면 배정 시 문자·카카오톡 알림을 코레일에 신청합니다.
           </p>
         </>
       )}

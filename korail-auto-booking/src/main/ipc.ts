@@ -122,6 +122,7 @@ export function registerIpc(ctx: IpcContext): void {
       seatPreference: config.seatPreference,
       allowWaitingList: config.allowWaitingList,
       continueAfterWaitlist: config.continueAfterWaitlist,
+      waitlistSmsPhone: config.waitlistSmsPhone,
       intervalMs: config.intervalMs,
       jitterMs: config.jitterMs,
       maxAttempts: config.maxAttempts,

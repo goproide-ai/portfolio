@@ -19,6 +19,8 @@ export interface Endpoints {
   reserve: string
   reservations: string
   cancel: string
+  /** Second step of a 예약대기: confirms the standby options (class change, seat-assignment SMS). */
+  wait: string
   tickets: string
   stationData: string
 }
@@ -34,6 +36,7 @@ export function endpointsFor(base: string): Endpoints {
     reserve: `${mobile}.certification.TicketReservation`,
     reservations: `${mobile}.reservation.ReservationView`,
     cancel: `${mobile}.reservationCancel.ReservationCancelChk`,
+    wait: `${mobile}.reservationWait.ReservationWait`,
     tickets: `${mobile}.myTicket.MyTicketList`,
     stationData: `${mobile}.common.stationdata`,
   }

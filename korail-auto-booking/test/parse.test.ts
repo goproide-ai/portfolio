@@ -82,12 +82,17 @@ describe('parseReservation', () => {
     expect(r.price).toBe(47400)
   })
 
-  it('recognises a waiting-list sequence number even when a deadline is present', () => {
-    expect(isWaitingListEntry({ h_wct_no: '3', h_ntisu_lmt_dt: '20260910' })).toBe(true)
-    expect(isWaitingListEntry({ h_wct_no: '0', h_ntisu_lmt_dt: '20260910' })).toBe(false)
+  it('uses the 대기 reservation type and the 235959 sentinel as waiting markers, not the window number', () => {
+    expect(isWaitingListEntry({ h_rsv_tp_cd: '8', h_ntisu_lmt_dt: '20260910', h_ntisu_lmt_tm: '143000' })).toBe(true)
+    expect(isWaitingListEntry({ h_ntisu_lmt_dt: '20260325', h_ntisu_lmt_tm: '235959' })).toBe(true)
     expect(isWaitingListEntry({ h_ntisu_lmt_dt: '' })).toBe(true)
+    // h_wct_no is the 창구 number used for payment; a normal hold may carry it.
+    expect(isWaitingListEntry({ h_wct_no: '3', h_rsv_tp_cd: '3', h_ntisu_lmt_dt: '20260910', h_ntisu_lmt_tm: '143000' })).toBe(false)
     expect(isBlankDate('00000000')).toBe(true)
     expect(isBlankDate('20260910')).toBe(false)
+    const r = parseReservation({ h_pnr_no: '1', h_rsv_tp_cd: '8', h_ntisu_lmt_dt: '20260325', h_ntisu_lmt_tm: '235959' })
+    expect(r.waiting).toBe(true)
+    expect(r.buyLimitDate).toBe('')
   })
 
   it('flattens journeys', () => {

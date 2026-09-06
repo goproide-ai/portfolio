@@ -89,6 +89,23 @@ export interface ReserveResult {
   seatClass: '1' | '2'
   waiting: boolean
   reservation: Reservation | null
+  /** For a waiting list: whether the standby options (ReservationWait) were confirmed. */
+  waitConfirmed?: boolean
+  /** Why the standby confirmation failed, when it did. */
+  waitConfirmError?: string
+}
+
+export interface WaitingListOptions {
+  /** Accept a seat of the other class if that is what frees up (txtPsrmClChgFlg). */
+  allowClassChange?: boolean
+  /** 10–11 digit mobile number for the seat-assignment SMS / 카카오톡 notice; empty = no notice. */
+  smsPhone?: string
+}
+
+/** Digits only, 10–11 long, or '' when the input is not a usable Korean mobile number. */
+export function normalizePhone(raw: string | undefined): string {
+  const digits = (raw ?? '').replace(/\D/g, '')
+  return /^01\d{8,9}$/.test(digits) ? digits : ''
 }
 
 export interface KorailUser {
@@ -447,6 +464,7 @@ export class KorailClient {
     passengers: Partial<Passengers> | undefined,
     preference: SeatPreference = 'GENERAL_FIRST',
     allowWaitingList = false,
+    waitOptions: WaitingListOptions = {},
   ): Promise<ReserveResult> {
     const choice = chooseSeatClass(train, preference, allowWaitingList)
     if (!choice) throw new SoldOutError()
@@ -489,6 +507,25 @@ export class KorailClient {
 
     const pnrNo = String(json.h_pnr_no ?? '')
     if (!pnrNo) throw new KorailError(cleanMessage(json.h_msg_txt) || '예약 응답에 예약번호가 없습니다.', String(json.h_msg_cd ?? ''))
+
+    // A waiting list is a two-step registration in the app: TicketReservation (1102) creates the
+    // hold (IRR000014 "예약대기 가능합니다."), then ReservationWait confirms the standby options.
+    let waitConfirmed: boolean | undefined
+    let waitConfirmError: string | undefined
+    if (choice.waiting) {
+      try {
+        await this.confirmWaitingList(pnrNo, {
+          allowClassChange: waitOptions.allowClassChange ?? (preference === 'GENERAL_FIRST' || preference === 'SPECIAL_FIRST'),
+          smsPhone: waitOptions.smsPhone,
+        })
+        waitConfirmed = true
+      } catch (e) {
+        waitConfirmed = false
+        waitConfirmError = e instanceof Error ? e.message : String(e)
+        this.log(`waiting-list confirmation failed: ${waitConfirmError}`)
+      }
+    }
+
     let reservation: Reservation | null = null
     try {
       const list = await this.reservations()
@@ -497,7 +534,22 @@ export class KorailClient {
     } catch (e) {
       this.log(`reservation lookup after reserve failed: ${(e as Error).message}`)
     }
-    return { pnrNo, seatClass: choice.seatClass, waiting: choice.waiting, reservation }
+    return { pnrNo, seatClass: choice.seatClass, waiting: choice.waiting, reservation, waitConfirmed, waitConfirmError }
+  }
+
+  /** Step two of a 예약대기: class-change consent and the seat-assignment SMS opt-in (IRZ000003 on success). */
+  async confirmWaitingList(pnrNo: string, opts: WaitingListOptions = {}): Promise<void> {
+    const phone = normalizePhone(opts.smsPhone)
+    const form: Params = {
+      Device: this.device,
+      Version: this._version,
+      Key: APP_KEY,
+      txtPnrNo: pnrNo,
+      txtPsrmClChgFlg: opts.allowClassChange ? 'Y' : 'N',
+      txtSmsSndFlg: phone ? 'Y' : 'N',
+    }
+    if (phone) form.txtCpNo = phone
+    await this.request('POST', this.endpoints.wait, form)
   }
 
   async reservations(): Promise<Reservation[]> {

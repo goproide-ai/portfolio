@@ -361,6 +361,39 @@ describe('KorailClient.reserve', () => {
     expect(calls).toHaveLength(0)
   })
 
+  it('confirms a waiting list with ReservationWait, sending the SMS opt-in only with a phone number', async () => {
+    const soldOut: Train = { ...train(), hasGeneralSeat: false, hasSpecialSeat: false, hasWaitingList: true }
+    const { client, calls } = await loggedInClient((r) => {
+      if (hits(r, ENDPOINTS.reserve)) return jsonResponse({ strResult: 'SUCC', h_msg_cd: 'IRR000014', h_pnr_no: 'W1', h_wct_no: '1' })
+      if (hits(r, ENDPOINTS.wait)) return jsonResponse({ strResult: 'SUCC', h_msg_cd: 'IRZ000003' })
+      return jsonResponse({ strResult: 'FAIL', h_msg_cd: 'P100', h_msg_txt: '없음' })
+    })
+    const result = await client.reserve(soldOut, { adult: 1 }, 'GENERAL_FIRST', true, { smsPhone: '010-1234-5678' })
+    expect(result.waiting).toBe(true)
+    expect(result.waitConfirmed).toBe(true)
+    const wait = calls.find((c) => hits(c, ENDPOINTS.wait))!
+    expect(wait.method).toBe('POST')
+    expect(wait.params.get('txtPnrNo')).toBe('W1')
+    expect(wait.params.get('txtPsrmClChgFlg')).toBe('Y')
+    expect(wait.params.get('txtSmsSndFlg')).toBe('Y')
+    expect(wait.params.get('txtCpNo')).toBe('01012345678')
+    expect(wait.headers[DYNAPATH_HEADER]).toBeUndefined()
+
+    const { client: c2, calls: calls2 } = await loggedInClient((r) => {
+      if (hits(r, ENDPOINTS.reserve)) return jsonResponse({ strResult: 'SUCC', h_msg_cd: 'IRR000014', h_pnr_no: 'W2' })
+      if (hits(r, ENDPOINTS.wait)) return jsonResponse({ strResult: 'FAIL', h_msg_cd: 'WRR800019', h_msg_txt: '휴대폰 번호를 확인하세요.' })
+      return jsonResponse({ strResult: 'FAIL', h_msg_cd: 'P100', h_msg_txt: '없음' })
+    })
+    const r2 = await c2.reserve(soldOut, { adult: 1 }, 'GENERAL_ONLY', true)
+    expect(r2.waiting).toBe(true)
+    expect(r2.waitConfirmed).toBe(false)
+    expect(r2.waitConfirmError).toMatch(/휴대폰 번호/)
+    const wait2 = calls2.find((c) => hits(c, ENDPOINTS.wait))!
+    expect(wait2.params.get('txtSmsSndFlg')).toBe('N')
+    expect(wait2.params.get('txtCpNo')).toBeNull()
+    expect(wait2.params.get('txtPsrmClChgFlg')).toBe('N')
+  })
+
   it('uses the waiting-list job id when allowed', async () => {
     const { client, calls } = await loggedInClient((r) => {
       if (hits(r, ENDPOINTS.reserve)) return jsonResponse({ strResult: 'SUCC', h_pnr_no: '1' })

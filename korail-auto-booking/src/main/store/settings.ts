@@ -8,6 +8,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   seatPreference: 'GENERAL_FIRST',
   allowWaitingList: false,
   continueAfterWaitlist: true,
+  waitlistSmsPhone: '',
   intervalMs: DEFAULT_INTERVAL_MS,
   jitterMs: DEFAULT_JITTER_MS,
   maxAttempts: 0,
@@ -56,6 +57,7 @@ function sanitize(input: Partial<AppSettings>): Partial<AppSettings> {
   if (typeof input.seatPreference === 'string') out.seatPreference = input.seatPreference
   if (typeof input.allowWaitingList === 'boolean') out.allowWaitingList = input.allowWaitingList
   if (typeof input.continueAfterWaitlist === 'boolean') out.continueAfterWaitlist = input.continueAfterWaitlist
+  if (typeof input.waitlistSmsPhone === 'string') out.waitlistSmsPhone = input.waitlistSmsPhone.replace(/[^\d-]/g, '').slice(0, 13)
   if (Number.isFinite(input.intervalMs)) out.intervalMs = Math.max(1000, Math.floor(input.intervalMs as number))
   if (Number.isFinite(input.jitterMs)) out.jitterMs = Math.max(0, Math.floor(input.jitterMs as number))
   if (Number.isFinite(input.maxAttempts)) out.maxAttempts = Math.max(0, Math.floor(input.maxAttempts as number))

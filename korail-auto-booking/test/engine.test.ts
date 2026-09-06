@@ -24,7 +24,7 @@ function baseConfig(over: Partial<BookingConfig> = {}): BookingConfig {
   return {
     dep: '서울', arr: '부산', date: '20260910', timeFrom: '08:00', timeTo: '10:00', categories: [],
     passengers: { adult: 1, child: 0, toddler: 0, senior: 0 }, targetTrainKeys: [], seatPreference: 'GENERAL_FIRST',
-    allowWaitingList: false, continueAfterWaitlist: true, intervalMs: 2000, jitterMs: 0, maxAttempts: 0, ...over,
+    allowWaitingList: false, continueAfterWaitlist: true, waitlistSmsPhone: '', intervalMs: 2000, jitterMs: 0, maxAttempts: 0, ...over,
   }
 }
 
@@ -424,10 +424,24 @@ describe('BookingEngine', () => {
     // Round 3: a real seat opened — reserved and finished, with a reminder about the waiting list.
     expect(client.reserve).toHaveBeenCalledTimes(2)
     expect(client.reserve.mock.calls[1][3]).toBe(false) // waiting list not allowed for an already-joined train
+    expect(client.reserve.mock.calls[0][4]).toEqual({ smsPhone: '' })
     expect(engine.getState().status).toBe('success')
     expect(engine.getState().reservation?.rsvId).toBe('R1')
     expect(engine.getState().reservation?.waiting).toBe(false)
     expect(logs.some((l) => l.level === 'warn' && l.message.includes('예약대기 1건') && l.message.includes('W1'))).toBe(true)
+  })
+
+  it('passes the normalised SMS number to reserve and warns when the standby confirmation failed', async () => {
+    const client = fakeClient()
+    client.searchWindow.mockResolvedValue([{ ...train('001', '080000', false), hasWaitingList: true, waitReserveFlag: 9 }])
+    client.reserve.mockResolvedValue({ pnrNo: 'W1', seatClass: '1', waiting: true, reservation: null, waitConfirmed: false, waitConfirmError: '휴대폰 번호를 확인하세요. [WRR800019]' })
+    const { engine, logs } = makeEngine(client)
+    engine.start(baseConfig({ allowWaitingList: true, waitlistSmsPhone: '010-1234-5678', intervalMs: 1000 }))
+    await vi.advanceTimersByTimeAsync(0)
+    expect(client.reserve.mock.calls[0][4]).toEqual({ smsPhone: '01012345678' })
+    expect(logs.some((l) => l.level === 'warn' && l.message.includes('좌석 배정 알림') && l.message.includes('WRR800019'))).toBe(true)
+    expect(engine.getState().waitlist).toHaveLength(1) // the hold itself still counts
+    engine.stop()
   })
 
   it('ends the run on a waiting list when continueAfterWaitlist is off', async () => {

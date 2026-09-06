@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events'
 import type { BookingConfig, BookingState, LogEntry, LogLevel, Reservation, Train } from '../../shared/types'
-import type { KorailClient } from '../korail/client'
+import { normalizePhone, type KorailClient } from '../korail/client'
 import { AppVersionError, DynaPathError, KorailError, NeedToLoginError, NetworkError, NoResultsError, SoldOutError, describeError } from '../korail/errors'
 import { normalizePassengers, totalPassengers } from '../korail/passengers'
 import { describeTrain, selectCandidates, selectTargets, windowBounds } from './matcher'
@@ -86,6 +86,7 @@ export function validateConfig(input: BookingConfig): BookingConfig {
     seatPreference: input.seatPreference ?? 'GENERAL_FIRST',
     allowWaitingList: Boolean(input.allowWaitingList),
     continueAfterWaitlist: input.continueAfterWaitlist === undefined ? true : Boolean(input.continueAfterWaitlist),
+    waitlistSmsPhone: normalizePhone(input.waitlistSmsPhone),
     intervalMs,
     jitterMs,
     maxAttempts,
@@ -266,10 +267,15 @@ export class BookingEngine extends EventEmitter<BookingEngineEvents> {
           const allowWaiting = config.allowWaitingList && !this.waitlisted.has(train.key)
           this.log('info', `${allowWaiting && !train.hasGeneralSeat && !train.hasSpecialSeat ? '예약대기 신청' : '예약 시도'}: ${describeTrain(train)} (${seatSummary(train)})`)
           try {
-            const result = await this.deps.client.reserve(train, config.passengers, config.seatPreference, allowWaiting)
+            const result = await this.deps.client.reserve(train, config.passengers, config.seatPreference, allowWaiting, { smsPhone: config.waitlistSmsPhone })
             // A stop()/start() may have fired while reserve() was in flight; do not commit into a
             // stopped or superseded run (mirrors the abort re-check at every other await site).
             if (signal.aborted) return
+            if (result.waiting && result.waitConfirmed === false) {
+              this.log('warn', `예약대기 옵션(좌석 배정 알림) 등록에 실패했습니다: ${result.waitConfirmError ?? '알 수 없는 오류'}. 코레일+ 앱의 예약 내역에서 좌석 배정 알림을 직접 신청하세요.`)
+            } else if (result.waiting && config.waitlistSmsPhone) {
+              this.log('info', `좌석 배정 알림을 ${config.waitlistSmsPhone.replace(/^(\d{3})(\d{3,4})(\d{4})$/, '$1-$2-$3')} 번호로 신청했습니다.`)
+            }
             const reservation = result.reservation ?? synthesizeReservation(train, result.pnrNo, config, result.waiting)
             if (this.settle(train, reservation, result.waiting, config)) return
             continue
@@ -377,7 +383,7 @@ export class BookingEngine extends EventEmitter<BookingEngineEvents> {
       this.log(
         'success',
         `${prefix ? `${prefix}: ` : ''}예약대기 등록 완료 — 예약번호 ${reservation.rsvId}, ${describeTrain(train)}. ` +
-          '좌석이 확보된 것은 아닙니다. 취소표가 나와 좌석이 배정되면 코레일+ 앱에서 결제기한이 안내됩니다. 그동안 빈 좌석을 계속 찾습니다.',
+          '좌석이 확보된 것은 아닙니다(취소표가 나오면 신청 순서대로 배정). 코레일+ 앱의 예약 내역(미결제 예약 조회)에서 확인되며, 좌석이 배정되면 결제기한이 생깁니다. 그동안 빈 좌석을 계속 찾습니다.',
       )
       this.emitState()
       this.emit('waitlisted', reservation)

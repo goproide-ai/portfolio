@@ -116,6 +116,8 @@ export interface BookingConfig extends SearchRequest {
   allowWaitingList: boolean
   /** 예약대기를 등록한 뒤에도 (좌석이 배정될 때까지) 빈 좌석을 계속 찾을지. 기본 true. */
   continueAfterWaitlist: boolean
+  /** 좌석 배정 알림(문자·카카오톡)을 받을 휴대폰 번호. 비어 있으면 알림 신청 없음. */
+  waitlistSmsPhone: string
   /** 재조회 간격 (ms) */
   intervalMs: number
   /** 간격에 더할 랜덤 지터 최대값 (ms) */
@@ -174,6 +176,7 @@ export interface AppSettings {
   seatPreference: SeatPreference
   allowWaitingList: boolean
   continueAfterWaitlist: boolean
+  waitlistSmsPhone: string
   intervalMs: number
   jitterMs: number
   maxAttempts: number
