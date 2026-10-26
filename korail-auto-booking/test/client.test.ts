@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { CookieJar, KorailClient, chooseSeatClass, classifyLoginId, extractLoginCryptoInfo, getSetCookies, nextMinute, redactUrl } from '../src/main/korail/client'
-import { DynaPathError, LoginError, NeedToLoginError, NetworkError, NoResultsError, SoldOutError } from '../src/main/korail/errors'
+import { AccessRestrictedError, AppVersionError, DynaPathError, LoginError, NeedToLoginError, NetworkError, NoResultsError, SoldOutError } from '../src/main/korail/errors'
 import { DYNAPATH_HEADER } from '../src/main/korail/dynapath'
 import { ENDPOINTS } from '../src/main/korail/constants'
 import type { Train } from '../src/shared/types'
@@ -79,8 +79,10 @@ async function loggedInClient(handler: (r: Recorded) => Response | Promise<Respo
 describe('helpers', () => {
   it('classifies login ids', () => {
     expect(classifyLoginId('a@b.co')).toEqual({ flag: '5', value: 'a@b.co' })
-    expect(classifyLoginId('010-1234-5678')).toEqual({ flag: '4', value: '010-1234-5678' })
-    expect(classifyLoginId('01012345678')).toEqual({ flag: '4', value: '010-1234-5678' })
+    // The 7.0.x app sends mobile numbers without hyphens.
+    expect(classifyLoginId('010-1234-5678')).toEqual({ flag: '4', value: '01012345678' })
+    expect(classifyLoginId('01012345678')).toEqual({ flag: '4', value: '01012345678' })
+    expect(classifyLoginId('011-123-4567')).toEqual({ flag: '4', value: '0111234567' })
     expect(classifyLoginId(' 12345678 ')).toEqual({ flag: '2', value: '12345678' })
   })
 
@@ -159,16 +161,18 @@ describe('KorailClient.login', () => {
     const login = calls[1]
     expect(login.method).toBe('POST')
     expect(login.params.get('txtInputFlg')).toBe('4')
-    expect(login.params.get('txtMemberNo')).toBe('010-1234-5678')
+    expect(login.params.get('txtMemberNo')).toBe('01012345678')
     expect(login.params.get('idx')).toBe('42')
-    expect(login.params.get('Version')).toBe('250601003')
+    expect(login.params.get('Version')).toBe('250722001')
+    expect(login.params.get('AppVersion')).toBe('7.0.10')
     expect(login.params.get('Device')).toBe('AD')
     expect(login.params.get('Key')).toBe('korail1234567890')
     expect(login.params.get('checkValidPw')).toBe('Y')
     expect(login.params.get('txtPwd')).not.toBe('pw')
     expect(login.headers.Cookie).toBe('JSESSIONID=S1')
-    expect(login.headers['User-Agent']).toContain('Dalvik')
-    expect(login.headers[DYNAPATH_HEADER]).toMatch(/^bEeEP/)
+    expect(login.headers['User-Agent']).toBe('korailtalk')
+    expect(login.headers['Content-Type']).toBe('application/x-www-form-urlencoded')
+    expect(login.headers[DYNAPATH_HEADER]).toMatch(/^201[0-9A-Za-z]{321}$/)
 
     await client.reservations()
     const rsv = calls[2]
@@ -258,8 +262,10 @@ describe('KorailClient.searchTrains / searchWindow', () => {
     expect(q.get('ebizCrossCheck')).toBe('N')
     expect(q.get('Sid')).toBeTruthy()
     expect(q.get('mbCrdNo')).toBe('12345678')
-    expect(q.get('Version')).toBe('250601003')
-    expect(calls[0].headers[DYNAPATH_HEADER]).toMatch(/^bEeEP/)
+    expect(q.get('Version')).toBe('250722001')
+    expect(q.get('AppVersion')).toBe('7.0.10')
+    expect(q.get('Key')).toBeNull() // the app sends no Key on ScheduleView
+    expect(calls[0].headers[DYNAPATH_HEADER]).toMatch(/^201[0-9A-Za-z]{219}$/)
   })
 
   it('returns [] on no-results errors and rethrows others', async () => {
@@ -352,7 +358,8 @@ describe('KorailClient.reserve', () => {
     expect(q.get('Key')).toBe('korail1234567890')
     expect(q.get('txtJrnyCnt')).toBe('1')
     expect(q.get('txtSeatAttCd4')).toBe('015')
-    expect(calls[0].headers[DYNAPATH_HEADER]).toMatch(/^bEeEP/)
+    expect(q.get('AppVersion')).toBe('7.0.10')
+    expect(calls[0].headers[DYNAPATH_HEADER]).toMatch(/^201[0-9A-Za-z]{219}$/)
   })
 
   it('throws SoldOutError locally when nothing matches the preference', async () => {
@@ -429,5 +436,71 @@ describe('KorailClient.reservations / cancel', () => {
 
   it('propagates NoResultsError type checks', () => {
     expect(new NoResultsError()).toBeInstanceOf(Error)
+  })
+})
+
+describe('KorailClient rejections (7.0.10 server)', () => {
+  it('maps the -8204 "update the app" answer to AppVersionError, as a FAIL body or a bare envelope', async () => {
+    const { client } = await loggedInClient(() => jsonResponse({ strResult: 'FAIL', h_msg_cd: '-8204', h_msg_txt: '코레일+ 앱을 최신 버전으로 업데이트 후 이용해 주세요.' }))
+    const err = await client.searchTrains({ dep: '서울', arr: '부산', date: '20260910', time: '080000' }).catch((e: unknown) => e)
+    expect(err).toBeInstanceOf(AppVersionError)
+    expect((err as AppVersionError).message).toMatch(/고급/)
+    expect((err as AppVersionError).message).toMatch(/업데이트 후 이용해/)
+    expect((err as AppVersionError).code).toBe('-8204')
+
+    const { client: c2 } = await loggedInClient(() => jsonResponse({ code: '-8204', message: '앱 업데이트가 필요합니다.' }, { status: 403 }))
+    await expect(c2.searchTrains({ dep: '서울', arr: '부산', date: '20260910', time: '080000' })).rejects.toThrow(AppVersionError)
+  })
+
+  it('treats the -2000 access-restriction envelope as AccessRestrictedError whatever the status', async () => {
+    const { client } = await loggedInClient(() => jsonResponse({ code: '-2000', message: '이용이 제한되었습니다.', id: 'trace-1' }, { status: 403 }))
+    const err = await client.reservations().catch((e: unknown) => e)
+    expect(err).toBeInstanceOf(AccessRestrictedError)
+    expect((err as AccessRestrictedError).message).toMatch(/이용이 제한되었습니다/)
+    expect((err as AccessRestrictedError).message).not.toMatch(/trace-1/)
+
+    const { client: c2 } = await loggedInClient(() => jsonResponse({ code: '-2000', message: '이용이 제한되었습니다.' }, { status: 200 }))
+    await expect(c2.reservations()).rejects.toThrow(AccessRestrictedError)
+  })
+
+  it('treats the -1406 macro-tool envelope and a MACRO ERROR body as DynaPathError', async () => {
+    const { client } = await loggedInClient(() => jsonResponse({ code: '-1406', message: '매크로 또는 미허가 도구 사용이 감지되었습니다.' }, { status: 403 }))
+    const err = await client.searchTrains({ dep: '서울', arr: '부산', date: '20260910', time: '080000' }).catch((e: unknown) => e)
+    expect(err).toBeInstanceOf(DynaPathError)
+    expect((err as DynaPathError).code).toBe('DYNAPATH-1406')
+
+    const { client: c2 } = await loggedInClient(() => new Response('MACRO ERROR', { status: 200, headers: { 'Content-Type': 'text/html' } }))
+    await expect(c2.searchTrains({ dep: '서울', arr: '부산', date: '20260910', time: '080000' })).rejects.toThrow(DynaPathError)
+  })
+
+  it('still honours Korail-shaped FAIL bodies on a 4xx status and reports other 5xx as NetworkError', async () => {
+    const { client } = await loggedInClient(() => jsonResponse({ strResult: 'FAIL', h_msg_cd: 'P058', h_msg_txt: '로그인 후 이용하세요.' }, { status: 401 }))
+    await expect(client.reservations()).rejects.toThrow(NeedToLoginError)
+    const { client: c2 } = await loggedInClient(() => new Response('<html>Bad gateway</html>', { status: 502 }))
+    await expect(c2.reservations()).rejects.toThrow(NetworkError)
+  })
+
+  it('lets both version values be overridden at runtime and falls back to the defaults on empty input', async () => {
+    const { client, calls } = await loggedInClient(() => jsonResponse({ strResult: 'FAIL', h_msg_cd: 'P100', h_msg_txt: '없음' }))
+    client.version = '250901001'
+    client.appVersion = '7.0.11'
+    await client.reservations()
+    expect(calls[0].params.get('Version')).toBe('250901001')
+    expect(calls[0].params.get('AppVersion')).toBe('7.0.11')
+    client.version = ' '
+    client.appVersion = ''
+    await client.reservations()
+    expect(calls[1].params.get('Version')).toBe('250722001')
+    expect(calls[1].params.get('AppVersion')).toBe('7.0.10')
+  })
+
+  it('logs out through common.logout with the common fields', async () => {
+    const { client, calls } = await loggedInClient(() => jsonResponse({ strResult: 'SUCC' }))
+    await client.logout()
+    expect(calls).toHaveLength(1)
+    expect(hits(calls[0], ENDPOINTS.logout)).toBe(true)
+    expect(calls[0].url.pathname).toMatch(/common\.logout$/)
+    expect(calls[0].params.get('AppVersion')).toBe('7.0.10')
+    expect(client.loggedIn).toBe(false)
   })
 })

@@ -46,7 +46,18 @@ function makeEngine(client: FakeClient, relogin?: () => Promise<boolean>) {
   return { engine, logs }
 }
 
+// The fixtures travel on 2026-09-10; pin the clock before that so "past date" validation stays deterministic.
+const FIXTURE_NOW = new Date('2026-09-01T03:00:00Z')
+
 describe('validateConfig', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.setSystemTime(FIXTURE_NOW)
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
   it('normalises and clamps', () => {
     const c = validateConfig(baseConfig({ date: '2026-09-10', timeFrom: '8:00'.padStart(5, '0'), intervalMs: 10, maxAttempts: -3 }))
     expect(c.date).toBe('20260910')
@@ -74,6 +85,7 @@ describe('kstToday', () => {
 describe('BookingEngine', () => {
   beforeEach(() => {
     vi.useFakeTimers()
+    vi.setSystemTime(FIXTURE_NOW)
   })
   afterEach(() => {
     vi.useRealTimers()

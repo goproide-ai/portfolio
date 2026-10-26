@@ -5,6 +5,18 @@ import { createServer } from 'node:http'
 
 export const MOCK_KEY = 'abcdefghijklmnopqrstuvwxyz012345'
 export const MOCK_USER = { id: '12345678', password: 'pw-1234', name: '홍길동', email: 'hong@example.com' }
+/** The 코레일+ store version the mock treats as current; older AppVersion values get the -8204 "update" answer. */
+export const MOCK_MIN_APP_VERSION = '7.0.10'
+
+function compareVersions(a, b) {
+  const pa = String(a).split('.').map((n) => parseInt(n, 10) || 0)
+  const pb = String(b).split('.').map((n) => parseInt(n, 10) || 0)
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const d = (pa[i] ?? 0) - (pb[i] ?? 0)
+    if (d !== 0) return d
+  }
+  return 0
+}
 
 function decryptPassword(doubleB64) {
   // Android Base64.DEFAULT wraps and appends "\n"; strip whitespace before decoding either layer.
@@ -54,7 +66,11 @@ export function startMockKorail({ soldOutRounds = 2 } = {}) {
     loggedIn: false,
     log: [],
     dynapathSeen: [],
+    /** Every x-dynapath-m-token value received, with its path, so the test can check shape and length. */
+    dynapathTokens: [],
     sidSeen: [],
+    /** AppVersion values seen per path. */
+    appVersionSeen: [],
   }
 
   const server = createServer(async (req, res) => {
@@ -72,14 +88,30 @@ export function startMockKorail({ soldOutRounds = 2 } = {}) {
     const fail = (code, text) => send({ strResult: 'FAIL', h_msg_cd: code, h_msg_txt: text })
 
     const dynapath = req.headers['x-dynapath-m-token']
-    // DynaPath-protected paths must carry the app-integrity token (login/search/reserve).
+    if (p('AppVersion')) state.appVersionSeen.push({ path, value: p('AppVersion') })
+    // DynaPath-protected paths must carry the app-integrity token (login/search/reserve). Like the
+    // real server (7.0.10 era): no token → "MACRO ERROR" text, an SDK 1.x "bEeEP…" or otherwise
+    // malformed token → 403 with the -1406 envelope, a "201…" alphanumeric token → accepted.
     const requiresDynapath = /(login\.Login|seatMovie\.ScheduleView|certification\.TicketReservation)$/.test(path)
     if (requiresDynapath) {
       state.dynapathSeen.push(path)
-      if (!dynapath || !dynapath.startsWith('bEeEP')) {
-        res.writeHead(403, { 'Content-Type': 'application/json;charset=UTF-8', 'DynaPath-Result': '-1' })
-        res.end(JSON.stringify({ message: 'MACRO ERROR' }))
+      if (!dynapath) {
+        res.writeHead(200, { 'Content-Type': 'text/html;charset=UTF-8' })
+        res.end('MACRO ERROR')
         return
+      }
+      state.dynapathTokens.push({ path, token: dynapath })
+      if (!/^201[0-9A-Za-z]+$/.test(dynapath)) {
+        res.writeHead(403, { 'Content-Type': 'application/json;charset=UTF-8' })
+        res.end(JSON.stringify({ code: '-1406', message: '매크로 또는 미허가 도구 사용이 감지되었습니다.' }))
+        return
+      }
+    }
+    // The login form carries the store version Korail gates on since 7.0.8.
+    if (path.endsWith('.login.Login')) {
+      const appVersion = p('AppVersion')
+      if (!appVersion || compareVersions(appVersion, MOCK_MIN_APP_VERSION) < 0) {
+        return fail('-8204', '코레일+ 앱을 최신 버전으로 업데이트 후 이용해 주세요.')
       }
     }
 

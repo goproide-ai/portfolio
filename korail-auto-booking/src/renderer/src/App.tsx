@@ -12,6 +12,7 @@ import type {
   SessionInfo,
   Train,
 } from '../../shared/types'
+import { isAppVersionErrorMessage } from '../../shared/errorCodes'
 import { inWindow, matchesCategory } from '../../shared/trains'
 import { BookingControls, type BookingOptions } from './components/BookingControls'
 import { LoginCard } from './components/LoginCard'
@@ -20,6 +21,7 @@ import { ReservationPanel } from './components/ReservationPanel'
 import { SearchForm, type SearchFormValue } from './components/SearchForm'
 import { StatusBar } from './components/StatusBar'
 import { TrainTable } from './components/TrainTable'
+import { VersionSettings, type VersionOverrides } from './components/VersionSettings'
 import { errorMessage, korail } from './lib/bridge'
 import { compactToISO, isoToCompact, todayISO } from './lib/format'
 import { playSuccessChime } from './lib/sound'
@@ -128,6 +130,9 @@ export default function App(): JSX.Element {
   const [authBusy, setAuthBusy] = useState(false)
   const [authError, setAuthError] = useState<string | null>(null)
   const [toast, setToast] = useState<{ text: string; kind: 'error' | 'info' } | null>(null)
+  const [versionOverrides, setVersionOverrides] = useState<VersionOverrides>({ appVersion: '', appDisplayVersion: '' })
+  // Korail's "update the app" answer, kept on screen until the version values change (a toast is too brief).
+  const [appVersionIssue, setAppVersionIssue] = useState<string | null>(null)
   const prevStatus = useRef<BookingState['status']>('idle')
   const prevWaitlist = useRef(0)
   const toastTimer = useRef<number | null>(null)
@@ -183,6 +188,7 @@ export default function App(): JSX.Element {
         prevWaitlist.current = bs.waitlist.length
         setSavedLogin(saved)
         setOptions(optionsFromSettings(st))
+        setVersionOverrides({ appVersion: st.appVersion ?? '', appDisplayVersion: st.appDisplayVersion ?? '' })
         if (st.lastSearch) setForm((f) => formFromLastSearch(st.lastSearch!, f))
       } catch (e) {
         if (!cancelled) showToast(errorMessage(e))
@@ -288,12 +294,32 @@ export default function App(): JSX.Element {
         level: 'info',
         message: `열차 조회: ${req.dep} → ${req.arr} ${form.date} ${form.timeFrom}~${form.timeTo} — ${result.length}편`,
       })
+      setAppVersionIssue(null)
     } catch (e) {
-      showToast(`조회 실패: ${errorMessage(e)}`)
+      const message = errorMessage(e)
+      if (isAppVersionErrorMessage(message)) setAppVersionIssue(message)
+      showToast(`조회 실패: ${message}`)
     } finally {
       setSearching(false)
     }
   }, [form, pushLog, showToast])
+
+  const saveVersionOverrides = useCallback(
+    async (next: VersionOverrides) => {
+      try {
+        const saved = await korail.saveSettings({ appVersion: next.appVersion, appDisplayVersion: next.appDisplayVersion })
+        setVersionOverrides({ appVersion: saved.appVersion ?? '', appDisplayVersion: saved.appDisplayVersion ?? '' })
+        const info = await korail.getAppInfo()
+        setAppInfo(info)
+        setAppVersionIssue(null)
+        pushLog({ ts: Date.now(), level: 'info', message: `코레일+ 앱 버전 값 적용: Version ${info.apiVersion}, AppVersion ${info.appDisplayVersion}` })
+        showToast('버전 값을 저장했습니다. 열차 조회를 다시 시도하세요.', 'info')
+      } catch (e) {
+        showToast(`버전 값 저장 실패: ${errorMessage(e)}`)
+      }
+    },
+    [pushLog, showToast],
+  )
 
   const start = useCallback(async () => {
     const req = toSearchRequest(form)
@@ -320,7 +346,9 @@ export default function App(): JSX.Element {
       await korail.saveSettings({ soundOnSuccess: options.soundOnSuccess, notifyOnSuccess: options.notifyOnSuccess })
       setBooking(await korail.startBooking(config))
     } catch (e) {
-      showToast(errorMessage(e))
+      const message = errorMessage(e)
+      if (isAppVersionErrorMessage(message)) setAppVersionIssue(message)
+      showToast(message)
     }
   }, [form, selected, trains, options, showToast])
 
@@ -385,6 +413,8 @@ export default function App(): JSX.Element {
     [visibleTrains, form.categories],
   )
   const selectedInView = useMemo(() => [...selected].filter((k) => visibleTrains.some((t) => t.key === k)).length, [selected, visibleTrains])
+  // Either a failed search/start or the engine stopping on the same answer keeps the banner up.
+  const appVersionBlocked = appVersionIssue ?? (isAppVersionErrorMessage(booking.error) ? booking.error : null)
 
   return (
     <div className="app">
@@ -441,8 +471,16 @@ export default function App(): JSX.Element {
               onStart={() => void start()}
               onStop={() => void stop()}
             />
+            <VersionSettings info={appInfo} overrides={versionOverrides} highlighted={appVersionBlocked !== null} disabled={running} onSave={saveVersionOverrides} />
           </aside>
           <section className="content">
+            {appVersionBlocked && (
+              <div className="alert error banner" role="alert">
+                <strong>코레일이 앱 업데이트를 요구합니다.</strong> 코레일+ 앱이 새 버전으로 바뀌어 이 프로그램이 보내는 버전 값이 거부되었습니다. 새 버전의 프로그램을
+                받거나, 왼쪽 아래 <strong>코레일+ 앱 버전 값 (고급)</strong>에 Play 스토어의 최신 코레일+ 버전(예: 7.0.11)을 입력한 뒤 다시 조회하세요.
+                <span className="banner-detail">{appVersionBlocked}</span>
+              </div>
+            )}
             <StatusBar state={booking} />
             {highlight && (
               <ReservationPanel
@@ -484,6 +522,7 @@ export default function App(): JSX.Element {
       <footer className="statusline">
         <span>
           코레일+ API · {appInfo?.host ?? ''} · v{appInfo?.version ?? ''}
+          {appInfo ? ` · 코레일+ ${appInfo.appDisplayVersion} / ${appInfo.apiVersion}` : ''}
         </span>
         <span>예약 후 결제는 코레일+ 앱에서 결제기한 내에 직접 진행하세요. 예약대기는 좌석이 배정된 뒤에 결제합니다.</span>
       </footer>

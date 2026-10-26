@@ -1,0 +1,7 @@
+{
+  "$comment": "Latest 코레일+ (com.korail.talk) protocol version values. The desktop app fetches this file at startup so a Korail app release can be followed without rebuilding: 'version' is the internal build number sent as Version, 'appVersion' the store version sent as AppVersion.",
+  "version": "250722001",
+  "appVersion": "7.0.10",
+  "updatedAt": "2026-10-26",
+  "source": "devgyurak/pykorail protocol-evidence-7.0.10.json"
+}

@@ -3,8 +3,9 @@ import type { AppInfo, AppSettings, BookingConfig, LoginResult, Reservation, Sea
 import { STATION_NAMES } from '../shared/stations'
 import type { BookingEngine } from './booking/engine'
 import type { KorailClient } from './korail/client'
-import { API_VERSION, KORAIL_HOST } from './korail/constants'
+import { API_VERSION, APP_DISPLAY_VERSION, KORAIL_HOST } from './korail/constants'
 import { describeError } from './korail/errors'
+import type { ResolvedVersions } from './korail/version'
 import type { CredentialStore } from './store/credentials'
 import type { SettingsStore } from './store/settings'
 
@@ -15,6 +16,8 @@ export interface IpcContext {
   credentials: CredentialStore
   /** In-memory copy of the last successful login, used for automatic re-login. */
   session: { credentials: { id: string; password: string } | null }
+  /** Re-applies the Version / AppVersion precedence (settings > env > hint > default) to the client. */
+  versions: { refresh: () => ResolvedVersions }
 }
 
 type Handler = (...args: never[]) => unknown
@@ -31,7 +34,7 @@ function handle(channel: string, fn: Handler): void {
 }
 
 export function registerIpc(ctx: IpcContext): void {
-  const { client, engine, settings, credentials, session } = ctx
+  const { client, engine, settings, credentials, session, versions } = ctx
 
   const sessionInfo = (): SessionInfo => ({
     loggedIn: client.loggedIn,
@@ -146,15 +149,28 @@ export function registerIpc(ctx: IpcContext): void {
   })
 
   handle('settings:get', () => settings.get())
-  handle('settings:save', (patch: Partial<AppSettings>) => settings.save(patch ?? {}))
+  handle('settings:save', (patch: Partial<AppSettings>) => {
+    const next = settings.save(patch ?? {})
+    // A changed version override must reach the client at once, not at the next start.
+    if (patch && ('appVersion' in patch || 'appDisplayVersion' in patch)) versions.refresh()
+    return next
+  })
   handle('stations:list', () => STATION_NAMES)
 
-  handle('app:info', (): AppInfo => ({
-    version: app.getVersion(),
-    host: KORAIL_HOST,
-    apiVersion: API_VERSION,
-    platform: process.platform,
-  }))
+  handle('app:info', (): AppInfo => {
+    const v = versions.refresh()
+    return {
+      version: app.getVersion(),
+      host: KORAIL_HOST,
+      apiVersion: v.version.value,
+      apiVersionSource: v.version.source,
+      appDisplayVersion: v.appVersion.value,
+      appDisplayVersionSource: v.appVersion.source,
+      defaultApiVersion: API_VERSION,
+      defaultAppDisplayVersion: APP_DISPLAY_VERSION,
+      platform: process.platform,
+    }
+  })
 
   handle('app:openExternal', async (url: string) => {
     let parsed: URL

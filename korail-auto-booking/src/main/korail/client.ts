@@ -1,11 +1,11 @@
 import type { LoginResult, Passengers, Reservation, SeatPreference, Train } from '../../shared/types'
 import {
   API_VERSION,
+  APP_DISPLAY_VERSION,
   APP_KEY,
   COMMON_CODE_BOOTSTRAP_CODES,
   DEVICE,
   DEVICE_HEIGHT,
-  DEVICE_MODEL,
   DEVICE_WIDTH,
   DYNAPATH_PATHS,
   ENDPOINTS,
@@ -16,15 +16,25 @@ import {
   LOGIN_SUCCESS_CODES,
   MACRO_NOTICE_CODES,
   MAX_SCHEDULE_PAGES,
-  OS_RELEASE,
   OS_SDK_INT,
   SEAT_CLASS,
   TRAIN_GROUP,
-  buildUserAgent,
+  USER_AGENT,
 } from './constants'
 import { generateSid, transformLoginPassword, type LoginCryptoInfo } from './crypto'
-import { DYNAPATH_HEADER, DynapathTokenGenerator, buildDefaultSettings } from './dynapath'
-import { DynaPathError, KorailError, LoginError, NeedToLoginError, NetworkError, NoResultsError, SoldOutError, describeNetworkFailure, errorFromResponse } from './errors'
+import { DYNAPATH_HEADER, DynapathTokenGenerator } from './dynapath'
+import {
+  DynaPathError,
+  KorailError,
+  LoginError,
+  NeedToLoginError,
+  NetworkError,
+  NoResultsError,
+  SoldOutError,
+  describeNetworkFailure,
+  errorFromRejection,
+  errorFromResponse,
+} from './errors'
 import { extractReservationInfos, extractTrainInfos, parseReservation, parseTrain } from './parse'
 import { normalizePassengers, reservePassengerParams, searchPassengerParams } from './passengers'
 
@@ -34,11 +44,10 @@ export interface KorailClientOptions {
   /** Injectable fetch (tests). Defaults to global fetch. */
   fetch?: FetchLike
   device?: string
-  /** App version string sent as `Version`. */
+  /** Internal build number sent as `Version` (e.g. 250722001). */
   version?: string
-  /** Android release / model advertised in the User-Agent and the DynaPath token. */
-  osRelease?: string
-  deviceModel?: string
+  /** Store version sent as `AppVersion` (e.g. 7.0.10). */
+  appVersion?: string
   userAgent?: string
   timeoutMs?: number
   /** Pause between the pages of one window scan so a wide window is not a burst of requests. */
@@ -161,16 +170,17 @@ export function getSetCookies(res: Response): string[] {
 }
 
 const EMAIL_REGEX = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
-const PHONE_HYPHEN_REGEX = /^(\d{3})-(\d{3,4})-(\d{4})$/
-const PHONE_PLAIN_REGEX = /^(01\d)(\d{3,4})(\d{4})$/
+const PHONE_HYPHEN_REGEX = /^01[016789]-\d{3,4}-\d{4}$/
+const PHONE_PLAIN_REGEX = /^01[016789]\d{7,8}$/
 
-/** Decide which txtInputFlg to send and normalise the id the way the server expects (phones need hyphens). */
+/**
+ * Decide which txtInputFlg to send and normalise the id the way the 7.0.x app does: mobile
+ * numbers go out without hyphens (the app strips them), e-mails and membership numbers as typed.
+ */
 export function classifyLoginId(rawId: string): { flag: string; value: string } {
   const id = rawId.trim()
   if (EMAIL_REGEX.test(id)) return { flag: LOGIN_INPUT_FLAG.email, value: id }
-  if (PHONE_HYPHEN_REGEX.test(id)) return { flag: LOGIN_INPUT_FLAG.phone, value: id }
-  const plain = id.match(PHONE_PLAIN_REGEX)
-  if (plain) return { flag: LOGIN_INPUT_FLAG.phone, value: `${plain[1]}-${plain[2]}-${plain[3]}` }
+  if (PHONE_HYPHEN_REGEX.test(id) || PHONE_PLAIN_REGEX.test(id)) return { flag: LOGIN_INPUT_FLAG.phone, value: id.replace(/-/g, '') }
   return { flag: LOGIN_INPUT_FLAG.membership, value: id }
 }
 
@@ -250,6 +260,7 @@ export class KorailClient {
   private readonly fetchImpl: FetchLike
   private readonly device: string
   private _version: string
+  private _appVersion: string
   private readonly userAgent: string
   private readonly timeoutMs: number
   private readonly pageDelayMs: number
@@ -266,16 +277,14 @@ export class KorailClient {
     this.fetchImpl = f
     this.device = options.device ?? DEVICE
     this._version = options.version ?? API_VERSION
-    const osRelease = options.osRelease ?? OS_RELEASE
-    const deviceModel = options.deviceModel ?? DEVICE_MODEL
-    this.userAgent = options.userAgent ?? buildUserAgent(osRelease, deviceModel)
+    this._appVersion = options.appVersion ?? APP_DISPLAY_VERSION
+    this.userAgent = options.userAgent ?? USER_AGENT
     this.timeoutMs = options.timeoutMs ?? 15_000
     this.pageDelayMs = Math.max(0, options.pageDelayMs ?? 300)
     this.log = options.logger ?? (() => undefined)
     this.endpoints = { ...ENDPOINTS, ...(options.endpoints ?? {}) }
     this.now = options.now ?? (() => Date.now())
-    this.dynapath =
-      options.dynapath ?? new DynapathTokenGenerator(buildDefaultSettings({ osVersion: osRelease, deviceModel, appStartTs: this.now() }), this.now)
+    this.dynapath = options.dynapath ?? new DynapathTokenGenerator()
   }
 
   get loggedIn(): boolean {
@@ -290,19 +299,37 @@ export class KorailClient {
     return this._version
   }
 
-  /** Let the user override the app version string without rebuilding (Korail bumps it with app releases). */
+  /** Let the user override the build number without rebuilding (Korail bumps it with app releases). */
   set version(v: string) {
     const trimmed = v.trim()
     this._version = trimmed || API_VERSION
+  }
+
+  get appVersion(): string {
+    return this._appVersion
+  }
+
+  /** Store version sent as `AppVersion`; overridable for the same reason as `version`. */
+  set appVersion(v: string) {
+    const trimmed = v.trim()
+    this._appVersion = trimmed || APP_DISPLAY_VERSION
+  }
+
+  /** Device / Version / AppVersion — the fields every 7.0.x request model starts with. */
+  private commonParams(): Params {
+    return { Device: this.device, Version: this._version, AppVersion: this._appVersion }
+  }
+
+  /** commonParams plus the static app Key (login, reservation, cancel, lists). */
+  private keyedParams(): Params {
+    return { ...this.commonParams(), Key: APP_KEY }
   }
 
   // ---------------------------------------------------------------- login
 
   private async fetchLoginCryptoInfo(): Promise<LoginCryptoInfo> {
     const json = await this.request('POST', this.endpoints.code, {
-      Device: this.device,
-      Version: this._version,
-      Key: APP_KEY,
+      ...this.keyedParams(),
       code: [...COMMON_CODE_BOOTSTRAP_CODES],
       deviceWidth: DEVICE_WIDTH,
       deviceHeight: DEVICE_HEIGHT,
@@ -324,12 +351,10 @@ export class KorailClient {
     this.log(`login: input flag ${flag}, aes=${crypto.aes}`)
 
     const form: Params = {
-      Device: this.device,
-      Version: this._version,
-      Key: APP_KEY,
+      ...this.keyedParams(),
+      txtInputFlg: flag,
       txtMemberNo: value,
       txtPwd: transformLoginPassword(password, crypto),
-      txtInputFlg: flag,
       checkValidPw: 'Y',
     }
     if (crypto.idx) form.idx = crypto.idx
@@ -369,7 +394,7 @@ export class KorailClient {
 
   async logout(): Promise<void> {
     try {
-      if (this.jar.size > 0) await this.rawRequest('GET', this.endpoints.logout, {})
+      if (this.jar.size > 0) await this.rawRequest('GET', this.endpoints.logout, this.keyedParams())
     } catch (e) {
       this.log(`logout ignored: ${(e as Error).message}`)
     } finally {
@@ -385,8 +410,7 @@ export class KorailClient {
     const passengers = normalizePassengers(opts.passengers)
     const trainGroup = opts.trainGroup ?? TRAIN_GROUP.ALL
     const form: Params = {
-      Device: this.device,
-      Version: this._version,
+      ...this.commonParams(),
       Sid: generateSid(this.now(), this.device),
       txtMenuId: '11',
       radJobId: '1',
@@ -471,9 +495,7 @@ export class KorailClient {
     const psg = normalizePassengers(passengers)
 
     const json = await this.request('POST', this.endpoints.reserve, {
-      Device: this.device,
-      Version: this._version,
-      Key: APP_KEY,
+      ...this.keyedParams(),
       txtMenuId: '11',
       txtJobId: choice.waiting ? JOB_ID.waiting : JOB_ID.reserve,
       txtGdNo: '',
@@ -541,9 +563,7 @@ export class KorailClient {
   async confirmWaitingList(pnrNo: string, opts: WaitingListOptions = {}): Promise<void> {
     const phone = normalizePhone(opts.smsPhone)
     const form: Params = {
-      Device: this.device,
-      Version: this._version,
-      Key: APP_KEY,
+      ...this.keyedParams(),
       txtPnrNo: pnrNo,
       txtPsrmClChgFlg: opts.allowClassChange ? 'Y' : 'N',
       txtSmsSndFlg: phone ? 'Y' : 'N',
@@ -555,11 +575,7 @@ export class KorailClient {
   async reservations(): Promise<Reservation[]> {
     let json: Json
     try {
-      json = await this.request('GET', this.endpoints.reservations, {
-        Device: this.device,
-        Version: this._version,
-        Key: APP_KEY,
-      })
+      json = await this.request('GET', this.endpoints.reservations, this.keyedParams())
     } catch (e) {
       if (e instanceof NoResultsError) return []
       throw e
@@ -569,9 +585,7 @@ export class KorailClient {
 
   async cancel(rsv: Pick<Reservation, 'rsvId' | 'journeyNo' | 'journeyCnt' | 'rsvChgNo'>): Promise<boolean> {
     await this.request('POST', this.endpoints.cancel, {
-      Device: this.device,
-      Version: this._version,
-      Key: APP_KEY,
+      ...this.keyedParams(),
       txtPnrNo: rsv.rsvId,
       txtJrnySqno: rsv.journeyNo,
       txtJrnyCnt: rsv.journeyCnt,
@@ -591,14 +605,12 @@ export class KorailClient {
     return json
   }
 
-  private needsDynapath(url: string): boolean {
-    let path = url
+  private pathOf(url: string): string {
     try {
-      path = new URL(url).pathname
+      return new URL(url).pathname
     } catch {
-      // keep raw
+      return url
     }
-    return DYNAPATH_PATHS.includes(path)
   }
 
   private async rawRequest(method: 'GET' | 'POST', url: string, params: Params): Promise<Json> {
@@ -607,7 +619,8 @@ export class KorailClient {
     const headers: Record<string, string> = { 'User-Agent': this.userAgent }
     const cookie = this.jar.header()
     if (cookie) headers.Cookie = cookie
-    if (this.needsDynapath(url)) headers[DYNAPATH_HEADER] = this.dynapath.token()
+    const path = this.pathOf(url)
+    if (DYNAPATH_PATHS.includes(path)) headers[DYNAPATH_HEADER] = this.dynapath.token(path)
     const search = new URLSearchParams()
     for (const [k, v] of Object.entries(params)) {
       if (Array.isArray(v)) for (const item of v) search.append(k, item)
@@ -620,7 +633,7 @@ export class KorailClient {
       if (query) target = url + (url.includes('?') ? '&' : '?') + query
     } else {
       body = query
-      headers['Content-Type'] = 'application/x-www-form-urlencoded; charset=UTF-8'
+      headers['Content-Type'] = 'application/x-www-form-urlencoded'
     }
     this.log(`${method} ${redactUrl(method === 'GET' ? target : `${url}?${query}`)}`)
 
@@ -637,26 +650,35 @@ export class KorailClient {
     }
     this.jar.store(getSetCookies(res))
 
+    let json: Json | null = null
+    try {
+      const parsed: unknown = JSON.parse(text)
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) json = parsed as Json
+    } catch {
+      // not JSON — handled below
+    }
+    // A Korail-shaped answer (strResult) is returned as-is whatever the HTTP status, so h_msg_cd
+    // mapping decides. Anything else is a rejection envelope ({code, message}: 이용 제한 -2000,
+    // 매크로 도구 -1406, 앱 버전 -8204), a DynaPath block, or a plain "MACRO ERROR" body.
+    const korailShaped = json !== null && 'strResult' in json
+    if (json && !korailShaped) {
+      const rejection = errorFromRejection(res.status, json)
+      if (rejection) throw rejection
+    }
     const dynapathResult = res.headers.get('dynapath-result')
     if (res.status === 403 && dynapathResult !== null && Number(dynapathResult) < 0) {
-      let message = ''
-      try {
-        message = cleanMessage((JSON.parse(text) as Json).message)
-      } catch {
-        // not JSON
-      }
+      const message = cleanMessage(json?.message)
       throw new DynaPathError(message ? `코레일 매크로 방지 검사 거부: ${message}` : undefined, `DYNAPATH${dynapathResult}`)
     }
-    if (!res.ok) {
-      if (/MACRO\s*ERROR/i.test(text)) throw new DynaPathError()
-      throw new NetworkError(`코레일 서버 응답 오류 (HTTP ${res.status})`)
+    if (/MACRO\s*ERROR/i.test(text) && !korailShaped) throw new DynaPathError()
+    if (!res.ok && !korailShaped) {
+      const message = cleanMessage(json?.message)
+      throw new NetworkError(`코레일 서버 응답 오류 (HTTP ${res.status})${message ? `: ${message}` : ''}`)
     }
-    try {
-      return JSON.parse(text) as Json
-    } catch (e) {
-      if (/MACRO\s*ERROR/i.test(text)) throw new DynaPathError()
-      throw new NetworkError(`응답을 해석할 수 없습니다: ${text.slice(0, 120).replace(/\s+/g, ' ')}`, e)
+    if (json === null) {
+      throw new NetworkError(`응답을 해석할 수 없습니다: ${text.slice(0, 120).replace(/\s+/g, ' ')}`)
     }
+    return json
   }
 }
 

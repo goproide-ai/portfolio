@@ -182,12 +182,27 @@ export interface AppSettings {
   maxAttempts: number
   soundOnSuccess: boolean
   notifyOnSuccess: boolean
+  /** User override of the 코레일+ build number sent as `Version` ('' = built-in / env / remote hint). */
+  appVersion: string
+  /** User override of the 코레일+ store version sent as `AppVersion` ('' = built-in / env / remote hint). */
+  appDisplayVersion: string
 }
+
+/** Where an effective version value came from (settings UI, environment variable, remote hint, built-in). */
+export type VersionSource = 'setting' | 'env' | 'hint' | 'default'
 
 export interface AppInfo {
   version: string
   host: string
+  /** `Version` value in use and its origin. */
   apiVersion: string
+  apiVersionSource: VersionSource
+  /** `AppVersion` value in use and its origin. */
+  appDisplayVersion: string
+  appDisplayVersionSource: VersionSource
+  /** Built-in defaults, shown as placeholders in the settings UI. */
+  defaultApiVersion: string
+  defaultAppDisplayVersion: string
   platform: string
 }
 

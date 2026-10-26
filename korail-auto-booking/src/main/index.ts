@@ -5,7 +5,8 @@ import { pathToFileURL } from 'node:url'
 import { BookingEngine } from './booking/engine'
 import { broadcast, registerIpc, type IpcContext } from './ipc'
 import { KorailClient, type FetchLike } from './korail/client'
-import { endpointsFor } from './korail/constants'
+import { API_VERSION, APP_DISPLAY_VERSION, VERSION_HINT_URLS, endpointsFor } from './korail/constants'
+import { fetchVersionHint, normalizeBuildVersion, normalizeDisplayVersion, resolveVersion, type ResolvedVersions, type VersionHint } from './korail/version'
 import { notifyReservation, notifyStopped } from './notify'
 import { CredentialStore } from './store/credentials'
 import { SettingsStore } from './store/settings'
@@ -144,6 +145,27 @@ function apiBaseOverride(): string | undefined {
   return undefined
 }
 
+/**
+ * URLs of the remote version hint. KORAIL_VERSION_HINT_URL replaces the default list ('off'
+ * disables the lookup); with KORAIL_API_BASE pointing at a test server the lookup is skipped so
+ * tests never leave the machine.
+ */
+function versionHintUrls(apiBaseOverridden: boolean): readonly string[] {
+  const raw = process.env.KORAIL_VERSION_HINT_URL?.trim()
+  if (raw) {
+    if (raw.toLowerCase() === 'off') return []
+    try {
+      const url = new URL(raw)
+      if (url.protocol === 'http:' || url.protocol === 'https:') return [raw]
+    } catch {
+      // fall through
+    }
+    console.warn(`[korail] KORAIL_VERSION_HINT_URL 무시: http(s) URL이 아닙니다 (${raw})`)
+    return []
+  }
+  return apiBaseOverridden ? [] : VERSION_HINT_URLS
+}
+
 function bootstrap(): void {
   const userData = app.getPath('userData')
   const apiBase = apiBaseOverride()
@@ -153,13 +175,39 @@ function bootstrap(): void {
   // Node's fetch does not — that is the difference between working and "fetch failed" on office PCs.
   // The session cookie is managed by the client itself, so Electron's cookie store is kept out of it.
   const fetchImpl: FetchLike = (input, init) => net.fetch(input, { ...init, credentials: 'omit' })
+  const debugLog = isDev || process.env.KORAIL_DEBUG ? (m: string) => console.log(`[korail] ${m}`) : () => undefined
   const client = new KorailClient({
     fetch: fetchImpl,
     endpoints: apiBase ? endpointsFor(apiBase) : undefined,
-    logger: isDev || process.env.KORAIL_DEBUG ? (m) => console.log(`[korail] ${m}`) : undefined,
+    logger: isDev || process.env.KORAIL_DEBUG ? debugLog : undefined,
   })
-  // Korail bumps the app version string with each app release; let users bridge the gap without a rebuild.
-  if (process.env.KORAIL_APP_VERSION) client.version = process.env.KORAIL_APP_VERSION
+  // Korail bumps the app version values with each 코레일+ release and rejects stale ones. Let users
+  // bridge the gap without a rebuild: settings UI > environment variable > remote hint > built-in.
+  const versionHint: VersionHint = {}
+  const refreshVersions = (): ResolvedVersions => {
+    const s = settings.get()
+    const resolved: ResolvedVersions = {
+      version: resolveVersion(API_VERSION, { setting: s.appVersion, env: process.env.KORAIL_APP_VERSION, hint: versionHint.version }, normalizeBuildVersion),
+      appVersion: resolveVersion(
+        APP_DISPLAY_VERSION,
+        { setting: s.appDisplayVersion, env: process.env.KORAIL_APP_DISPLAY_VERSION, hint: versionHint.appVersion },
+        normalizeDisplayVersion,
+      ),
+    }
+    client.version = resolved.version.value
+    client.appVersion = resolved.appVersion.value
+    return resolved
+  }
+  refreshVersions()
+  const hintUrls = versionHintUrls(apiBase !== undefined)
+  if (hintUrls.length > 0) {
+    void fetchVersionHint(fetchImpl, hintUrls, { log: debugLog }).then((hint) => {
+      if (!hint) return
+      Object.assign(versionHint, hint)
+      const r = refreshVersions()
+      console.log(`[korail] 원격 버전 안내 적용: Version=${r.version.value} (${r.version.source}), AppVersion=${r.appVersion.value} (${r.appVersion.source})`)
+    })
+  }
   const sessionState: IpcContext['session'] = { credentials: null }
 
   engine = new BookingEngine({
@@ -196,7 +244,7 @@ function bootstrap(): void {
     if (settings.get().notifyOnSuccess) notifyReservation(reservation, mainWindow, showMainWindow)
   })
 
-  registerIpc({ client, engine, settings, credentials, session: sessionState })
+  registerIpc({ client, engine, settings, credentials, session: sessionState, versions: { refresh: refreshVersions } })
 
   app.on('before-quit', (event) => {
     if (quitting) return

@@ -1,11 +1,12 @@
 /**
  * 코레일+ (formerly 코레일톡) mobile API endpoints and protocol constants.
  *
- * Values follow the app (v6.5.0, 2026) as documented by the open-source
- * reverse-engineering projects korail2 (PR #54), yakisoba0728/korail-mobile-api,
- * leegyurak/pykorail and ppcciiss2-ux/sudol. Everything Korail is likely to
- * change (version string, device identity) lives here so it can be fixed in
- * one place, and the most fragile value (Version) can be overridden at runtime.
+ * Values follow the 코레일+ app 7.0.10 (2026-10) as captured and documented by
+ * devgyurak/pykorail (protocol-evidence-7.0.10.json), with the older ground work
+ * of korail2, yakisoba0728/korail-mobile-api and ppcciiss2-ux/sudol. Everything
+ * Korail is likely to change (version strings, device identity) lives here so it
+ * can be fixed in one place; the two version values can also be overridden at
+ * runtime (settings, environment variables, remote hint) without a rebuild.
  */
 
 export const KORAIL_HOST = 'smart.letskorail.com'
@@ -31,7 +32,7 @@ export function endpointsFor(base: string): Endpoints {
   return {
     code: `${mobile}.common.code.do`,
     login: `${mobile}.login.Login`,
-    logout: `${mobile}.login.Logout`,
+    logout: `${mobile}.common.logout`,
     schedule: `${mobile}.seatMovie.ScheduleView`,
     reserve: `${mobile}.certification.TicketReservation`,
     reservations: `${mobile}.reservation.ReservationView`,
@@ -56,23 +57,35 @@ export const DYNAPATH_PATHS: readonly string[] = [
 
 /** Device identifier sent with every request ('AD' = Android). */
 export const DEVICE = 'AD'
-/** App version string (com.korail.talk 6.5.0). Korail rejects stale values, so keep this current. */
-export const API_VERSION = '250601003'
+/**
+ * Internal build number sent as `Version` (com.korail.talk 7.0.8 – 7.0.10 all send 250722001).
+ * Korail rejects stale values, so keep this current.
+ */
+export const API_VERSION = '250722001'
+/**
+ * Store (display) version sent as `AppVersion` since 7.0.8. The server gates on it: an older
+ * value is answered with -8204 "앱 업데이트 후 이용해 주세요". Bump it when 코레일+ updates.
+ */
+export const APP_DISPLAY_VERSION = '7.0.10'
 /** Static app key sent on login / reservation; the session itself is the JSESSIONID cookie. */
 export const APP_KEY = 'korail1234567890'
-/** Build.VERSION.RELEASE / Build.MODEL advertised in the User-Agent and the DynaPath token (must agree). */
-export const OS_RELEASE = '15'
-export const DEVICE_MODEL = 'Android'
 /** Build.VERSION.SDK_INT and screen size sent to common.code.do at startup. */
 export const OS_SDK_INT = '35'
 export const DEVICE_WIDTH = '1080'
 export const DEVICE_HEIGHT = '2400'
 
-export function buildUserAgent(osRelease: string, deviceModel: string): string {
-  return `Dalvik/2.1.0 (Linux; U; Android ${osRelease}; ${deviceModel})`
-}
+/** The app's fixed User-Agent (OkHttp with a custom UA; not the Dalvik default). */
+export const USER_AGENT = 'korailtalk'
 
-export const USER_AGENT = buildUserAgent(OS_RELEASE, DEVICE_MODEL)
+/**
+ * Where the app looks, at startup, for newer Version / AppVersion values so a Korail app
+ * release does not require rebuilding this program. The first URL that answers with a valid
+ * JSON document wins; see korail-version.json at the project root for the format.
+ */
+export const VERSION_HINT_URLS: readonly string[] = [
+  'https://raw.githubusercontent.com/goproide-ai/portfolio/master/korail-auto-booking/korail-version.json',
+  'https://raw.githubusercontent.com/goproide-ai/portfolio/claude/korail-auto-booking-app-v3zgj9/korail-auto-booking/korail-version.json',
+]
 
 /** Code that yields the AES key for the password (`app.login.cphd`). */
 export const LOGIN_CIPHER_CODE = 'app.login.cphd'
@@ -166,6 +179,17 @@ export const ERROR_CODES = {
   needLogin: ['P058'],
   noResults: ['P100', 'WRG000000', 'WRD000061', 'WRT300005'],
   soldOut: ['ERR211161', 'IRT010110'],
+  /** "앱 업데이트 후 이용해 주세요": the Version / AppVersion (or token generation) this client sends is stale. */
+  appVersion: ['-8204'],
+} as const
+
+/**
+ * Codes of the non-Korail-shaped rejection envelope `{code, message}` (HTTP 403 observed):
+ * -2000 = 실행 환경 검증에 걸린 이용 제한 (do not retry at once), -1406 = 매크로/미허가 도구 (token rejected).
+ */
+export const REJECTION_CODES = {
+  accessRestricted: '-2000',
+  macroTool: '-1406',
 } as const
 
 /** Maximum number of schedule pages (10 trains each) fetched when scanning a time window. */

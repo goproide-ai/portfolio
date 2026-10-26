@@ -779,3 +779,36 @@ table.trains tr.excluded {
 .check.sub {
   margin-left: 26px;
 }
+
+/* --------------------------------------------- app-version banner + advanced card */
+.alert.banner {
+  margin-bottom: 12px;
+  line-height: 1.5;
+}
+
+.alert.banner .banner-detail {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
+  opacity: 0.85;
+  word-break: break-word;
+}
+
+details.card.advanced > summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 14px;
+  list-style: revert;
+}
+
+details.card.advanced.highlighted {
+  outline: 2px solid var(--danger);
+  outline-offset: -1px;
+}
+
+details.card.advanced .version-current code {
+  font-size: 12px;
+  background: rgba(0, 0, 0, 0.05);
+  padding: 1px 4px;
+  border-radius: 4px;
+}

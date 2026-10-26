@@ -2,6 +2,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import type { AppSettings } from '../../shared/types'
 import { DEFAULT_INTERVAL_MS, DEFAULT_JITTER_MS } from '../booking/engine'
+import { normalizeBuildVersion, normalizeDisplayVersion } from '../korail/version'
 
 export const DEFAULT_SETTINGS: AppSettings = {
   lastSearch: null,
@@ -14,6 +15,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   maxAttempts: 0,
   soundOnSuccess: true,
   notifyOnSuccess: true,
+  appVersion: '',
+  appDisplayVersion: '',
 }
 
 /** Tiny JSON-file settings store kept in Electron's userData directory. */
@@ -63,5 +66,8 @@ function sanitize(input: Partial<AppSettings>): Partial<AppSettings> {
   if (Number.isFinite(input.maxAttempts)) out.maxAttempts = Math.max(0, Math.floor(input.maxAttempts as number))
   if (typeof input.soundOnSuccess === 'boolean') out.soundOnSuccess = input.soundOnSuccess
   if (typeof input.notifyOnSuccess === 'boolean') out.notifyOnSuccess = input.notifyOnSuccess
+  // Version overrides: keep only well-formed values; anything else (including '') clears the override.
+  if (typeof input.appVersion === 'string') out.appVersion = normalizeBuildVersion(input.appVersion)
+  if (typeof input.appDisplayVersion === 'string') out.appDisplayVersion = normalizeDisplayVersion(input.appDisplayVersion)
   return out
 }

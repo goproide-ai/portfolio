@@ -1,11 +1,19 @@
 import { describe, expect, it } from 'vitest'
-import { AppVersionError, DynaPathError, KorailError, NoResultsError, describeNetworkFailure, errorFromResponse } from '../src/main/korail/errors'
+import { AccessRestrictedError, AppVersionError, DynaPathError, KorailError, NoResultsError, describeNetworkFailure, errorFromRejection, errorFromResponse } from '../src/main/korail/errors'
 
 describe('errorFromResponse', () => {
   it('recognises an app-update demand from the server text', () => {
     expect(errorFromResponse('WRC000000', '앱을 최신 버전으로 업데이트 후 이용해 주세요.')).toBeInstanceOf(AppVersionError)
     expect(errorFromResponse('IRT000001', '최신 버전의 앱으로 업데이트가 필요합니다')).toBeInstanceOf(AppVersionError)
-    expect(errorFromResponse('', '코레일톡 앱 업데이트가 필요합니다.').message).toMatch(/KORAIL_APP_VERSION/)
+    expect(errorFromResponse('', '코레일톡 앱 업데이트가 필요합니다.').message).toMatch(/고급/)
+    expect(errorFromResponse('', '코레일톡 앱 업데이트가 필요합니다.').code).toBe('APP_VERSION')
+  })
+
+  it('recognises the -8204 code even without a telling message', () => {
+    const e = errorFromResponse('-8204', '')
+    expect(e).toBeInstanceOf(AppVersionError)
+    expect(e.code).toBe('-8204')
+    expect(e.message).toMatch(/앱 업데이트/)
   })
 
   it('does not mistake ordinary messages for an update demand', () => {
@@ -46,5 +54,25 @@ describe('describeNetworkFailure', () => {
   it('falls back to the raw message', () => {
     expect(describeNetworkFailure(new Error('weird'))).toBe('네트워크 오류: weird')
     expect(describeNetworkFailure('boom')).toBe('네트워크 오류: boom')
+  })
+})
+
+describe('errorFromRejection', () => {
+  it('maps the 403 envelopes of the 7.0.10 server', () => {
+    expect(errorFromRejection(403, { code: '-2000', message: '이용이 제한되었습니다.' })).toBeInstanceOf(AccessRestrictedError)
+    expect(errorFromRejection(200, { code: '-2000' })).toBeInstanceOf(AccessRestrictedError)
+    const macro = errorFromRejection(403, { code: '-1406', message: '매크로' })
+    expect(macro).toBeInstanceOf(DynaPathError)
+    expect(macro?.code).toBe('DYNAPATH-1406')
+    expect(errorFromRejection(403, { code: '-8204', message: '업데이트' })).toBeInstanceOf(AppVersionError)
+  })
+
+  it('returns a generic KorailError for unknown 4xx envelopes and null otherwise', () => {
+    const e = errorFromRejection(429, { code: '-9999', message: '요청이 너무 많습니다.' })
+    expect(e).toBeInstanceOf(KorailError)
+    expect(e?.code).toBe('-9999')
+    expect(errorFromRejection(200, { code: '-9999' })).toBeNull()
+    expect(errorFromRejection(403, { message: 'no code' })).toBeNull()
+    expect(errorFromRejection(200, { data: 1 })).toBeNull()
   })
 })

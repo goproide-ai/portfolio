@@ -1,7 +1,7 @@
 import { EventEmitter } from 'node:events'
 import type { BookingConfig, BookingState, LogEntry, LogLevel, Reservation, Train } from '../../shared/types'
 import { normalizePhone, type KorailClient } from '../korail/client'
-import { AppVersionError, DynaPathError, KorailError, NeedToLoginError, NetworkError, NoResultsError, SoldOutError, describeError } from '../korail/errors'
+import { AccessRestrictedError, AppVersionError, DynaPathError, KorailError, NeedToLoginError, NetworkError, NoResultsError, SoldOutError, describeError } from '../korail/errors'
 import { normalizePassengers, totalPassengers } from '../korail/passengers'
 import { describeTrain, selectCandidates, selectTargets, windowBounds } from './matcher'
 
@@ -288,7 +288,7 @@ export class BookingEngine extends EventEmitter<BookingEngineEvents> {
               this.finish('error', MACRO_BLOCK_MESSAGE)
               return
             }
-            if (e instanceof AppVersionError) {
+            if (e instanceof AppVersionError || e instanceof AccessRestrictedError) {
               this.finish('error', describeError(e))
               return
             }
@@ -331,7 +331,8 @@ export class BookingEngine extends EventEmitter<BookingEngineEvents> {
           this.finish('error', MACRO_BLOCK_MESSAGE)
           return
         }
-        if (e instanceof AppVersionError) {
+        if (e instanceof AppVersionError || e instanceof AccessRestrictedError) {
+          // Stale version values or an access restriction: retrying only digs the hole deeper.
           this.finish('error', describeError(e))
           return
         }
@@ -480,6 +481,10 @@ export class BookingEngine extends EventEmitter<BookingEngineEvents> {
       }
       if (e instanceof DynaPathError) {
         this.finish('error', MACRO_BLOCK_MESSAGE)
+        return 'fatal'
+      }
+      if (e instanceof AppVersionError || e instanceof AccessRestrictedError) {
+        this.finish('error', describeError(e))
         return 'fatal'
       }
       this.finish('error', `재로그인 실패: ${describeError(e)}`)

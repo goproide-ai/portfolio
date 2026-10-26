@@ -1,4 +1,5 @@
-import { ERROR_CODES } from './constants'
+import { APP_VERSION_ERROR_CODE } from '../../shared/errorCodes'
+import { ERROR_CODES, REJECTION_CODES } from './constants'
 
 /** Base error for any FAIL response from the Korail API. */
 export class KorailError extends Error {
@@ -44,7 +45,7 @@ export class LoginError extends KorailError {
 
 /**
  * Korail's anti-automation layer (DynaPath) rejected the request: HTTP 403 with a
- * `DynaPath-Result` header, or a "MACRO ERROR" body.
+ * `DynaPath-Result` header or a `-1406` envelope, or a "MACRO ERROR" body.
  */
 export class DynaPathError extends KorailError {
   constructor(
@@ -57,14 +58,26 @@ export class DynaPathError extends KorailError {
 }
 
 export const APP_VERSION_MESSAGE =
-  '코레일이 앱 업데이트를 요구합니다. 이 프로그램이 보내는 앱 버전 값이 오래되었습니다. 새 버전의 프로그램을 받거나, ' +
-  '환경 변수 KORAIL_APP_VERSION에 최신 코레일+ 버전 값을 지정한 뒤 다시 실행하세요.'
+  '코레일이 앱 업데이트를 요구합니다. 이 프로그램이 코레일에 보내는 코레일+ 앱 버전 값이 오래되었습니다. ' +
+  "새 버전의 프로그램을 받거나, 왼쪽 아래 '코레일+ 앱 버전 값 (고급)'에 Play 스토어의 최신 코레일+ 버전을 입력하세요."
 
-/** Korail answered "update the app": the Version value this build sends is stale. */
+/** Korail answered "update the app": the Version / AppVersion values this build sends are stale. */
 export class AppVersionError extends KorailError {
-  constructor(message = APP_VERSION_MESSAGE, code = 'APP_VERSION') {
+  constructor(message = APP_VERSION_MESSAGE, code = APP_VERSION_ERROR_CODE) {
     super(message, code)
     this.name = 'AppVersionError'
+  }
+}
+
+export const ACCESS_RESTRICTED_MESSAGE =
+  '코레일이 이 실행 환경에서의 이용을 제한했습니다(실행 환경 검증). 같은 요청을 바로 반복하면 제한이 길어질 수 있습니다. ' +
+  '잠시 기다린 뒤 코레일+ 앱에서 정상 이용되는지 확인하고 다시 시도하세요.'
+
+/** `{code: "-2000"}` envelope: Korail restricted this client/account after its environment check. Never retry at once. */
+export class AccessRestrictedError extends KorailError {
+  constructor(message = ACCESS_RESTRICTED_MESSAGE, code = 'ACCESS_RESTRICTED') {
+    super(message, code)
+    this.name = 'AccessRestrictedError'
   }
 }
 
@@ -81,6 +94,10 @@ export class NetworkError extends Error {
 /** Server messages that mean "your app version is too old" rather than a real failure of the request. */
 const APP_UPDATE_REGEX = /(앱|어플|애플리케이션|app)[^.]{0,24}(업데이트|최신\s*버전)|(업데이트|최신\s*버전)[^.]{0,24}(앱|어플|애플리케이션|app)/i
 
+function appVersionError(code: string, msg: string): AppVersionError {
+  return new AppVersionError(msg ? `${APP_VERSION_MESSAGE} (서버 메시지: ${msg})` : APP_VERSION_MESSAGE, code || APP_VERSION_ERROR_CODE)
+}
+
 /** Map a FAIL response to the most specific error class. */
 export function errorFromResponse(code: string | undefined, text: string | undefined): KorailError {
   const c = (code ?? '').trim()
@@ -88,9 +105,30 @@ export function errorFromResponse(code: string | undefined, text: string | undef
   if ((ERROR_CODES.needLogin as readonly string[]).includes(c)) return new NeedToLoginError(c, msg || undefined)
   if ((ERROR_CODES.noResults as readonly string[]).includes(c)) return new NoResultsError(c, msg || undefined)
   if ((ERROR_CODES.soldOut as readonly string[]).includes(c)) return new SoldOutError(c, msg || undefined)
+  if ((ERROR_CODES.appVersion as readonly string[]).includes(c)) return appVersionError(c, msg)
   if (/MACRO\s*ERROR/i.test(msg)) return new DynaPathError(msg, c || 'DYNAPATH')
-  if (APP_UPDATE_REGEX.test(msg)) return new AppVersionError(`${APP_VERSION_MESSAGE} (서버 메시지: ${msg})`, c || 'APP_VERSION')
+  if (APP_UPDATE_REGEX.test(msg)) return appVersionError(c, msg)
   return new KorailError(msg || `코레일 API 오류 (${c || '코드 없음'})`, c)
+}
+
+/**
+ * Map a rejection envelope that is not a Korail `strResult` answer — `{code, message}` on an
+ * HTTP 403 (이용 제한 -2000, 매크로 도구 -1406) or the app-version gate — to an error, or null
+ * when the body is not one of those envelopes.
+ */
+export function errorFromRejection(status: number, body: Record<string, unknown>): KorailError | null {
+  const code = body.code === undefined || body.code === null ? '' : String(body.code).trim()
+  const message = typeof body.message === 'string' ? body.message.replace(/\s+/g, ' ').trim() : ''
+  if (!code) return null
+  if (code === REJECTION_CODES.accessRestricted) {
+    return new AccessRestrictedError(message ? `${ACCESS_RESTRICTED_MESSAGE} (서버 메시지: ${message})` : undefined)
+  }
+  if (code === REJECTION_CODES.macroTool) {
+    return new DynaPathError(message ? `코레일 매크로 방지 검사 거부: ${message}` : undefined, `DYNAPATH${code}`)
+  }
+  if ((ERROR_CODES.appVersion as readonly string[]).includes(code)) return appVersionError(code, message)
+  if (status >= 400) return new KorailError(message || `코레일 서버가 요청을 거절했습니다 (HTTP ${status})`, code)
+  return null
 }
 
 export function isKorailError(e: unknown): e is KorailError {
