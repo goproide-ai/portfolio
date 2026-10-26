@@ -413,6 +413,37 @@ describe('KorailClient.reserve', () => {
     expect(calls[0].params.get('txtJobId')).toBe('1102')
   })
 
+  it('reports a stop condition hit after the hold was created instead of hiding it', async () => {
+    const { client } = await loggedInClient((r) => {
+      if (hits(r, ENDPOINTS.reserve)) return jsonResponse({ strResult: 'SUCC', h_pnr_no: 'P1', h_wct_no: '1' })
+      return jsonResponse({ code: '-2000', message: '이용이 제한되었습니다.' }, { status: 403 })
+    })
+    const result = await client.reserve(train(), { adult: 1 }, 'GENERAL_FIRST', false)
+    expect(result.pnrNo).toBe('P1')
+    expect(result.reservation).toBeNull()
+    expect(result.hardStop).toMatch(/이용을 제한/)
+
+    const soldOut: Train = { ...train(), hasGeneralSeat: false, hasSpecialSeat: false, hasWaitingList: true }
+    const { client: c2, calls } = await loggedInClient((r) => {
+      if (hits(r, ENDPOINTS.reserve)) return jsonResponse({ strResult: 'SUCC', h_msg_cd: 'IRR000014', h_pnr_no: 'W1', h_wct_no: '1' })
+      if (hits(r, ENDPOINTS.wait)) return jsonResponse({ strResult: 'FAIL', h_msg_cd: '-8204', h_msg_txt: '최신 버전으로 업데이트해 주세요.' })
+      return jsonResponse({ strResult: 'SUCC' })
+    })
+    const r2 = await c2.reserve(soldOut, { adult: 1 }, 'GENERAL_FIRST', true)
+    expect(r2.waiting).toBe(true)
+    expect(r2.waitConfirmed).toBe(false)
+    expect(r2.hardStop).toMatch(/앱 업데이트/)
+    // No further request (ReservationView) is sent once a stop condition was seen.
+    expect(calls.some((c) => hits(c, ENDPOINTS.reservations))).toBe(false)
+
+    const { client: c3 } = await loggedInClient((r) => {
+      if (hits(r, ENDPOINTS.reserve)) return jsonResponse({ strResult: 'SUCC', h_pnr_no: 'P2', h_wct_no: '1' })
+      return new Response('<html>502</html>', { status: 502 })
+    })
+    const r3 = await c3.reserve(train(), { adult: 1 }, 'GENERAL_FIRST', false)
+    expect(r3.hardStop).toBeUndefined() // a transient failure of the lookup is not a stop condition
+  })
+
   it('maps the server sold-out codes', async () => {
     const { client } = await loggedInClient(() => jsonResponse({ strResult: 'FAIL', h_msg_cd: 'IRT010110', h_msg_txt: '매진' }))
     await expect(client.reserve(train(), { adult: 1 }, 'SPECIAL_FIRST', false)).rejects.toThrow(SoldOutError)
@@ -446,7 +477,9 @@ describe('KorailClient rejections (7.0.10 server)', () => {
     expect(err).toBeInstanceOf(AppVersionError)
     expect((err as AppVersionError).message).toMatch(/고급/)
     expect((err as AppVersionError).message).toMatch(/업데이트 후 이용해/)
-    expect((err as AppVersionError).code).toBe('-8204')
+    expect((err as AppVersionError).message).toMatch(/서버 코드 -8204/)
+    // The code is canonical so the renderer banner recognises the flattened "message [CODE]" form.
+    expect((err as AppVersionError).code).toBe('APP_VERSION')
 
     const { client: c2 } = await loggedInClient(() => jsonResponse({ code: '-8204', message: '앱 업데이트가 필요합니다.' }, { status: 403 }))
     await expect(c2.searchTrains({ dep: '서울', arr: '부산', date: '20260910', time: '080000' })).rejects.toThrow(AppVersionError)
@@ -473,11 +506,16 @@ describe('KorailClient rejections (7.0.10 server)', () => {
     await expect(c2.searchTrains({ dep: '서울', arr: '부산', date: '20260910', time: '080000' })).rejects.toThrow(DynaPathError)
   })
 
-  it('still honours Korail-shaped FAIL bodies on a 4xx status and reports other 5xx as NetworkError', async () => {
+  it('still honours Korail-shaped FAIL bodies on a 4xx status and reports other 4xx/5xx as NetworkError (so the engine backs off)', async () => {
     const { client } = await loggedInClient(() => jsonResponse({ strResult: 'FAIL', h_msg_cd: 'P058', h_msg_txt: '로그인 후 이용하세요.' }, { status: 401 }))
     await expect(client.reservations()).rejects.toThrow(NeedToLoginError)
     const { client: c2 } = await loggedInClient(() => new Response('<html>Bad gateway</html>', { status: 502 }))
     await expect(c2.reservations()).rejects.toThrow(NetworkError)
+    const { client: c3 } = await loggedInClient(() => jsonResponse({ code: '-9999', message: '요청이 너무 많습니다.' }, { status: 429 }))
+    const err = await c3.reservations().catch((e: unknown) => e)
+    expect(err).toBeInstanceOf(NetworkError)
+    expect((err as NetworkError).message).toMatch(/HTTP 429/)
+    expect((err as NetworkError).message).toMatch(/요청이 너무 많습니다/)
   })
 
   it('lets both version values be overridden at runtime and falls back to the defaults on empty input', async () => {
@@ -518,6 +556,20 @@ describe('KorailClient rejections (7.0.10 server)', () => {
 
     const { fetch: f2 } = makeFetch(() => new Response('<html>maintenance</html>', { status: 503 }))
     await expect(new KorailClient({ fetch: f2 }).fetchAppUpdateInfo()).rejects.toThrow(NetworkError)
+  })
+
+  it('keeps the cache probe out of the session: it neither sends nor stores cookies', async () => {
+    const { client, calls } = await loggedInClient((r) => {
+      if (hits(r, ENDPOINTS.appCache)) {
+        return jsonResponse({ version: { NEWDVERSION: '7.0.11' } }, { setCookie: ['JSESSIONID=OTHER-SESSION; Path=/', 'WMONID=zzz; Path=/'] })
+      }
+      return jsonResponse({ strResult: 'FAIL', h_msg_cd: 'P100', h_msg_txt: '없음' })
+    })
+    await client.fetchAppUpdateInfo()
+    expect(calls[0].headers.Cookie).toBeUndefined()
+    await client.reservations()
+    // The login's JSESSIONID (abc) is still the one sent; the probe's Set-Cookie did not replace it.
+    expect(calls[1].headers.Cookie).toBe('JSESSIONID=abc')
   })
 
   it('logs out through common.logout with the common fields', async () => {

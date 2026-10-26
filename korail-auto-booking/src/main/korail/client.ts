@@ -25,6 +25,8 @@ import { generateSid, transformLoginPassword, type LoginCryptoInfo } from './cry
 import { parseAppUpdateInfo, type AppUpdateInfo } from './version'
 import { DYNAPATH_HEADER, DynapathTokenGenerator } from './dynapath'
 import {
+  AccessRestrictedError,
+  AppVersionError,
   DynaPathError,
   KorailError,
   LoginError,
@@ -32,6 +34,7 @@ import {
   NetworkError,
   NoResultsError,
   SoldOutError,
+  describeError,
   describeNetworkFailure,
   errorFromRejection,
   errorFromResponse,
@@ -103,6 +106,17 @@ export interface ReserveResult {
   waitConfirmed?: boolean
   /** Why the standby confirmation failed, when it did. */
   waitConfirmError?: string
+  /**
+   * A follow-up call after the hold was created (ReservationWait, ReservationView) hit a condition
+   * that must stop automation (이용 제한, 앱 업데이트 요구, 매크로 방지). The hold still exists, so the
+   * result is returned; the caller must stop after recording it.
+   */
+  hardStop?: string
+}
+
+/** Rejections after which the next request must not be sent: the run has to stop, not retry. */
+export function isHardStop(e: unknown): e is AccessRestrictedError | AppVersionError | DynaPathError {
+  return e instanceof AccessRestrictedError || e instanceof AppVersionError || e instanceof DynaPathError
 }
 
 export interface WaitingListOptions {
@@ -399,11 +413,14 @@ export class KorailClient {
    * the value it should send as `AppVersion`. Never required: callers treat failures as "unknown".
    */
   async fetchAppUpdateInfo(): Promise<AppUpdateInfo> {
-    const json = await this.rawRequest('POST', this.endpoints.appCache, {
-      ...this.keyedParams(),
-      timeStamp: String(this.now()),
-      srtCheckYn: 'Y',
-    })
+    // Sessionless by design: it runs concurrently with a login, and a Set-Cookie on this answer must
+    // never replace the JSESSIONID the login just established.
+    const json = await this.rawRequest(
+      'POST',
+      this.endpoints.appCache,
+      { ...this.keyedParams(), timeStamp: String(this.now()), srtCheckYn: 'Y' },
+      { session: false },
+    )
     return parseAppUpdateInfo(json)
   }
 
@@ -549,6 +566,7 @@ export class KorailClient {
     // hold (IRR000014 "예약대기 가능합니다."), then ReservationWait confirms the standby options.
     let waitConfirmed: boolean | undefined
     let waitConfirmError: string | undefined
+    let hardStop: string | undefined
     if (choice.waiting) {
       try {
         await this.confirmWaitingList(pnrNo, {
@@ -559,19 +577,23 @@ export class KorailClient {
       } catch (e) {
         waitConfirmed = false
         waitConfirmError = e instanceof Error ? e.message : String(e)
+        if (isHardStop(e)) hardStop = describeError(e)
         this.log(`waiting-list confirmation failed: ${waitConfirmError}`)
       }
     }
 
     let reservation: Reservation | null = null
-    try {
-      const list = await this.reservations()
-      reservation = list.find((r) => r.rsvId === pnrNo) ?? null
-      if (reservation) reservation = { ...reservation, waiting: choice.waiting }
-    } catch (e) {
-      this.log(`reservation lookup after reserve failed: ${(e as Error).message}`)
+    if (!hardStop) {
+      try {
+        const list = await this.reservations()
+        reservation = list.find((r) => r.rsvId === pnrNo) ?? null
+        if (reservation) reservation = { ...reservation, waiting: choice.waiting }
+      } catch (e) {
+        if (isHardStop(e)) hardStop = describeError(e)
+        this.log(`reservation lookup after reserve failed: ${(e as Error).message}`)
+      }
     }
-    return { pnrNo, seatClass: choice.seatClass, waiting: choice.waiting, reservation, waitConfirmed, waitConfirmError }
+    return { pnrNo, seatClass: choice.seatClass, waiting: choice.waiting, reservation, waitConfirmed, waitConfirmError, hardStop }
   }
 
   /** Step two of a 예약대기: class-change consent and the seat-assignment SMS opt-in (IRZ000003 on success). */
@@ -628,11 +650,11 @@ export class KorailClient {
     }
   }
 
-  private async rawRequest(method: 'GET' | 'POST', url: string, params: Params): Promise<Json> {
+  private async rawRequest(method: 'GET' | 'POST', url: string, params: Params, { session = true }: { session?: boolean } = {}): Promise<Json> {
     const controller = new AbortController()
     const timer = setTimeout(() => controller.abort(), this.timeoutMs)
     const headers: Record<string, string> = { 'User-Agent': this.userAgent }
-    const cookie = this.jar.header()
+    const cookie = session ? this.jar.header() : undefined
     if (cookie) headers.Cookie = cookie
     const path = this.pathOf(url)
     if (DYNAPATH_PATHS.includes(path)) headers[DYNAPATH_HEADER] = this.dynapath.token(path)
@@ -663,7 +685,7 @@ export class KorailClient {
     } finally {
       clearTimeout(timer)
     }
-    this.jar.store(getSetCookies(res))
+    if (session) this.jar.store(getSetCookies(res))
 
     let json: Json | null = null
     try {

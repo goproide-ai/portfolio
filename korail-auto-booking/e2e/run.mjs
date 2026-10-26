@@ -95,11 +95,12 @@ try {
   assert(loginTokens.length > 0 && loginTokens.every((t) => t.token.length === 324), 'login tokens are 324 chars (request-bound)')
   assert(otherTokens.length > 0 && otherTokens.every((t) => t.token.length === 222), 'search/reserve tokens are 222 chars')
   assert(new Set(mock.state.dynapathTokens.map((t) => t.token)).size === mock.state.dynapathTokens.length, 'every token is fresh')
-  assert(mock.state.appVersionSeen.some((a) => a.path.endsWith('login.Login') && a.value === '7.0.10'), 'AppVersion 7.0.10 sent on login')
-  assert(mock.state.appVersionSeen.some((a) => a.path.endsWith('TicketReservation')), 'AppVersion sent on reserve')
-  const footer = await page.textContent('footer.statusline')
-  assert(footer.includes('코레일+ 7.0.10 / 250722001'), `footer shows the protocol versions: ${footer}`)
+  assert(mock.state.appVersionSeen.some((a) => a.path.endsWith('login.Login') && /^7\.0\.1[01]$/.test(a.value)), 'AppVersion sent on login')
+  // The mock's main-screen cache announces 7.0.11; after the probe every request must carry it.
   assert(mock.state.cacheProbes >= 1, 'the app asked the main-screen cache for the current store version')
+  assert(mock.state.appVersionSeen.some((a) => a.path.endsWith('TicketReservation') && a.value === '7.0.11'), `reserve carried the announced AppVersion: ${JSON.stringify(mock.state.appVersionSeen.slice(-3))}`)
+  const footer = await page.textContent('footer.statusline')
+  assert(footer.includes('코레일+ 7.0.11 / 250722001'), `footer shows the versions in effect: ${footer}`)
   const logText = await page.textContent('[data-testid="log"]')
   assert(logText.includes('예약 성공'), 'log shows success')
 

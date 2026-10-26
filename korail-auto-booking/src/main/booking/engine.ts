@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events'
 import type { BookingConfig, BookingState, LogEntry, LogLevel, Reservation, Train } from '../../shared/types'
-import { normalizePhone, type KorailClient } from '../korail/client'
+import { isHardStop, normalizePhone, type KorailClient } from '../korail/client'
 import { AccessRestrictedError, AppVersionError, DynaPathError, KorailError, NeedToLoginError, NetworkError, NoResultsError, SoldOutError, describeError } from '../korail/errors'
 import { normalizePassengers, totalPassengers } from '../korail/passengers'
 import { describeTrain, selectCandidates, selectTargets, windowBounds } from './matcher'
@@ -8,6 +8,12 @@ import { describeTrain, selectCandidates, selectTargets, windowBounds } from './
 /** Shown when Korail's anti-automation (매크로 방지) layer rejects a request. */
 export const MACRO_BLOCK_MESSAGE =
   '코레일 매크로 방지(무결성) 검사에 걸렸습니다. 계정 보호를 위해 자동 예매를 중지합니다. 잠시 후 코레일+ 앱에서 직접 이용하세요.'
+
+/** MACRO_BLOCK_MESSAGE plus whatever the server said (code / text), so the log explains which check fired. */
+function macroBlockMessage(e: DynaPathError): string {
+  const detail = e.message && e.message !== new DynaPathError().message ? ` (${e.message})` : ''
+  return `${MACRO_BLOCK_MESSAGE}${detail}${e.code ? ` [${e.code}]` : ''}`
+}
 
 export interface EngineDeps {
   client: KorailClient
@@ -277,7 +283,16 @@ export class BookingEngine extends EventEmitter<BookingEngineEvents> {
               this.log('info', `좌석 배정 알림을 ${config.waitlistSmsPhone.replace(/^(\d{3})(\d{3,4})(\d{4})$/, '$1-$2-$3')} 번호로 신청했습니다.`)
             }
             const reservation = result.reservation ?? synthesizeReservation(train, result.pnrNo, config, result.waiting)
-            if (this.settle(train, reservation, result.waiting, config)) return
+            if (this.settle(train, reservation, result.waiting, config)) {
+              if (result.hardStop) this.log('warn', `예약 직후의 확인 요청을 코레일이 거부했습니다: ${result.hardStop}`)
+              return
+            }
+            if (result.hardStop) {
+              // The hold was created, but a follow-up call hit a stop condition (이용 제한 등):
+              // record what we have and stop rather than send the next poll.
+              this.finish('error', result.hardStop)
+              return
+            }
             continue
           } catch (e) {
             if (e instanceof SoldOutError) {
@@ -285,7 +300,7 @@ export class BookingEngine extends EventEmitter<BookingEngineEvents> {
               continue
             }
             if (e instanceof DynaPathError) {
-              this.finish('error', MACRO_BLOCK_MESSAGE)
+              this.finish('error', macroBlockMessage(e))
               return
             }
             if (e instanceof AppVersionError || e instanceof AccessRestrictedError) {
@@ -328,7 +343,7 @@ export class BookingEngine extends EventEmitter<BookingEngineEvents> {
         if (e instanceof DynaPathError) {
           // Korail's anti-automation layer flagged the request. Stop immediately instead of
           // hammering it further, which is exactly what escalates an account toward a block.
-          this.finish('error', MACRO_BLOCK_MESSAGE)
+          this.finish('error', macroBlockMessage(e))
           return
         }
         if (e instanceof AppVersionError || e instanceof AccessRestrictedError) {
@@ -416,13 +431,15 @@ export class BookingEngine extends EventEmitter<BookingEngineEvents> {
 
   /**
    * Waiting lists this account already holds (from an earlier run or the 코레일+ app) must not be
-   * joined again; for those trains only a real seat counts. A failed lookup is not fatal.
+   * joined again; for those trains only a real seat counts. A failed lookup is not fatal — except
+   * for the stop conditions (이용 제한, 앱 업데이트, 매크로 방지), which propagate to the loop's handling.
    */
   private async noteExistingWaitlists(): Promise<void> {
     let existing: Reservation[]
     try {
       existing = await this.deps.client.reservations()
     } catch (e) {
+      if (isHardStop(e)) throw e
       this.log('warn', `기존 예약 목록을 확인하지 못했습니다 (${describeError(e)}). 예약대기가 이미 있는 열차에 다시 신청될 수 있습니다.`)
       return
     }
@@ -480,7 +497,7 @@ export class BookingEngine extends EventEmitter<BookingEngineEvents> {
         return 'retry'
       }
       if (e instanceof DynaPathError) {
-        this.finish('error', MACRO_BLOCK_MESSAGE)
+        this.finish('error', macroBlockMessage(e))
         return 'fatal'
       }
       if (e instanceof AppVersionError || e instanceof AccessRestrictedError) {

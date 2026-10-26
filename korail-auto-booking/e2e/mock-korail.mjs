@@ -73,8 +73,8 @@ export function startMockKorail({ soldOutRounds = 2 } = {}) {
     appVersionSeen: [],
     /** prdMobilePlusMain.cache probes (the app's own update check; no login needed). */
     cacheProbes: 0,
-    /** What the cache announces as the current store version. */
-    latestAppVersion: '7.0.10',
+    /** What the cache announces as the current store version — newer than the client's built-in on purpose. */
+    latestAppVersion: '7.0.11',
   }
 
   const server = createServer(async (req, res) => {
@@ -94,8 +94,10 @@ export function startMockKorail({ soldOutRounds = 2 } = {}) {
     const dynapath = req.headers['x-dynapath-m-token']
     if (p('AppVersion')) state.appVersionSeen.push({ path, value: p('AppVersion') })
     // DynaPath-protected paths must carry the app-integrity token (login/search/reserve). Like the
-    // real server (7.0.10 era): no token → "MACRO ERROR" text, an SDK 1.x "bEeEP…" or otherwise
-    // malformed token → 403 with the -1406 envelope, a "201…" alphanumeric token → accepted.
+    // real server (7.0.10 era, pykorail protocol-evidence-7.0.10.json): no token → "MACRO ERROR"
+    // text; a "201…" alphanumeric token → accepted; a well-formed SDK 1.x "bEeEP…" token is still
+    // accepted on login.Login but answered with -8204 ("update the app") on the other protected
+    // paths; anything else → 403 with the -1406 envelope.
     const requiresDynapath = /(login\.Login|seatMovie\.ScheduleView|certification\.TicketReservation)$/.test(path)
     if (requiresDynapath) {
       state.dynapathSeen.push(path)
@@ -105,10 +107,15 @@ export function startMockKorail({ soldOutRounds = 2 } = {}) {
         return
       }
       state.dynapathTokens.push({ path, token: dynapath })
-      if (!/^201[0-9A-Za-z]+$/.test(dynapath)) {
+      const v2 = /^201[0-9A-Za-z]+$/.test(dynapath)
+      const v1 = /^bEeEP[0-9A-Za-z]+$/.test(dynapath)
+      if (!v2 && !v1) {
         res.writeHead(403, { 'Content-Type': 'application/json;charset=UTF-8' })
         res.end(JSON.stringify({ code: '-1406', message: '매크로 또는 미허가 도구 사용이 감지되었습니다.' }))
         return
+      }
+      if (v1 && !path.endsWith('.login.Login')) {
+        return fail('-8204', '원활한 예매 및 결제 서비스를 위해 최신 버전으로 업데이트해 주세요. 최신 버전으로 업데이트하지 않을 경우 앱 이용이 제한될 수 있습니다.')
       }
     }
     // The login form carries the store version Korail gates on since 7.0.8.

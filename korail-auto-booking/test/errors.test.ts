@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { AccessRestrictedError, AppVersionError, DynaPathError, KorailError, NoResultsError, describeNetworkFailure, errorFromRejection, errorFromResponse } from '../src/main/korail/errors'
+import { AccessRestrictedError, AppVersionError, DynaPathError, KorailError, NoResultsError, describeError, describeNetworkFailure, errorFromRejection, errorFromResponse } from '../src/main/korail/errors'
+import { isAppVersionErrorMessage } from '../src/shared/errorCodes'
 
 describe('errorFromResponse', () => {
   it('recognises an app-update demand from the server text', () => {
@@ -12,9 +13,21 @@ describe('errorFromResponse', () => {
   it('recognises the -8204 code even without a telling message, and the app literal SUPDATE', () => {
     const e = errorFromResponse('-8204', '')
     expect(e).toBeInstanceOf(AppVersionError)
-    expect(e.code).toBe('-8204')
+    expect(e.code).toBe('APP_VERSION')
     expect(e.message).toMatch(/앱 업데이트/)
+    expect(e.message).toMatch(/서버 코드 -8204/)
     expect(errorFromResponse('SUPDATE', '')).toBeInstanceOf(AppVersionError)
+    expect(errorFromResponse('SUPDATE', '').code).toBe('APP_VERSION')
+  })
+
+  it('flattens to a message the renderer banner recognises, whatever Korail\'s own code was', () => {
+    for (const code of ['-8204', 'SUPDATE', '', 'WRZ999999']) {
+      const e = errorFromResponse(code, code === 'WRZ999999' || code === '' ? '최신 버전으로 업데이트해 주세요.' : '')
+      expect(isAppVersionErrorMessage(describeError(e))).toBe(true)
+    }
+    expect(isAppVersionErrorMessage(describeError(errorFromResponse('P058', '로그인')))).toBe(false)
+    expect(isAppVersionErrorMessage('조회 실패: 서버 오류 [-8204]')).toBe(true)
+    expect(isAppVersionErrorMessage(null)).toBe(false)
   })
 
   it('recognises the live 2026-10 server text even under an unknown code', () => {
@@ -75,10 +88,8 @@ describe('errorFromRejection', () => {
     expect(errorFromRejection(403, { code: '-8204', message: '업데이트' })).toBeInstanceOf(AppVersionError)
   })
 
-  it('returns a generic KorailError for unknown 4xx envelopes and null otherwise', () => {
-    const e = errorFromRejection(429, { code: '-9999', message: '요청이 너무 많습니다.' })
-    expect(e).toBeInstanceOf(KorailError)
-    expect(e?.code).toBe('-9999')
+  it('leaves unknown envelopes to the HTTP-status handling (null), whatever the status', () => {
+    expect(errorFromRejection(429, { code: '-9999', message: '요청이 너무 많습니다.' })).toBeNull()
     expect(errorFromRejection(200, { code: '-9999' })).toBeNull()
     expect(errorFromRejection(403, { message: 'no code' })).toBeNull()
     expect(errorFromRejection(200, { data: 1 })).toBeNull()

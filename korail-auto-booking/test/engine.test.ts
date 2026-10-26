@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { BookingEngine, ConfigError, MAX_ERROR_BACKOFF_MS, MAX_RELOGINS_PER_WINDOW, kstToday, validateConfig } from '../src/main/booking/engine'
-import { AppVersionError, DynaPathError, NeedToLoginError, NetworkError, SoldOutError } from '../src/main/korail/errors'
+import { AccessRestrictedError, AppVersionError, DynaPathError, NeedToLoginError, NetworkError, SoldOutError } from '../src/main/korail/errors'
 import type { KorailClient } from '../src/main/korail/client'
 import type { BookingConfig, LogEntry, Reservation, Train } from '../src/shared/types'
 
@@ -506,6 +506,77 @@ describe('BookingEngine', () => {
     expect(engine.getState().status).toBe('error')
     expect(engine.getState().error).toMatch(/업데이트/)
     expect(client.searchWindow).toHaveBeenCalledTimes(1)
+  })
+
+  it('stops at once on an access restriction (-2000) instead of re-polling a restricted account', async () => {
+    const client = fakeClient()
+    client.searchWindow.mockRejectedValue(new AccessRestrictedError())
+    const { engine } = makeEngine(client)
+    engine.start(baseConfig({ intervalMs: 1000 }))
+    await vi.advanceTimersByTimeAsync(0)
+    await engine.whenDone()
+    expect(engine.getState().status).toBe('error')
+    expect(engine.getState().error).toMatch(/이용을 제한/)
+    await vi.advanceTimersByTimeAsync(10_000)
+    expect(client.searchWindow).toHaveBeenCalledTimes(1)
+  })
+
+  it('stops on an access restriction raised by reserve() too', async () => {
+    const client = fakeClient()
+    client.searchWindow.mockResolvedValue([train('001', '080000', true)])
+    client.reserve.mockRejectedValue(new AccessRestrictedError())
+    const { engine } = makeEngine(client)
+    engine.start(baseConfig({ intervalMs: 1000 }))
+    await vi.advanceTimersByTimeAsync(0)
+    await engine.whenDone()
+    expect(engine.getState().status).toBe('error')
+    expect(engine.getState().error).toMatch(/이용을 제한/)
+    await vi.advanceTimersByTimeAsync(10_000)
+    expect(client.searchWindow).toHaveBeenCalledTimes(1)
+    expect(client.reserve).toHaveBeenCalledTimes(1)
+  })
+
+  it('stops after a waiting list was joined when the follow-up call hit a stop condition', async () => {
+    const client = fakeClient()
+    client.searchWindow.mockResolvedValue([{ ...train('001', '080000', false), hasWaitingList: true, waitReserveFlag: 9 }])
+    client.reserve.mockResolvedValue({ pnrNo: 'W1', seatClass: '1', waiting: true, reservation: null, waitConfirmed: false, hardStop: '코레일이 이용을 제한했습니다 [ACCESS_RESTRICTED]' })
+    const { engine } = makeEngine(client)
+    const waitlisted = vi.fn()
+    engine.on('waitlisted', waitlisted)
+    engine.start(baseConfig({ allowWaitingList: true, continueAfterWaitlist: true, intervalMs: 1000 }))
+    await vi.advanceTimersByTimeAsync(0)
+    await engine.whenDone()
+    expect(waitlisted).toHaveBeenCalledTimes(1)
+    expect(engine.getState().waitlist).toHaveLength(1)
+    expect(engine.getState().status).toBe('error')
+    expect(engine.getState().error).toMatch(/이용을 제한/)
+    await vi.advanceTimersByTimeAsync(10_000)
+    expect(client.searchWindow).toHaveBeenCalledTimes(1)
+  })
+
+  it('stops when the first-round waiting-list lookup itself is restricted', async () => {
+    const client = fakeClient()
+    client.reservations.mockRejectedValue(new AccessRestrictedError())
+    const { engine } = makeEngine(client)
+    engine.start(baseConfig({ allowWaitingList: true }))
+    await vi.advanceTimersByTimeAsync(0)
+    await engine.whenDone()
+    expect(engine.getState().status).toBe('error')
+    expect(engine.getState().error).toMatch(/이용을 제한/)
+    expect(client.searchWindow).not.toHaveBeenCalled()
+  })
+
+  it("keeps the server's detail when the DynaPath layer stops a run", async () => {
+    const client = fakeClient()
+    client.searchWindow.mockRejectedValue(new DynaPathError('코레일 매크로 방지 검사 거부: 매크로 또는 미허가 도구 사용이 감지되었습니다.', 'DYNAPATH-1406'))
+    const { engine } = makeEngine(client)
+    engine.start(baseConfig())
+    await vi.advanceTimersByTimeAsync(0)
+    await engine.whenDone()
+    expect(engine.getState().status).toBe('error')
+    expect(engine.getState().error).toMatch(/매크로 방지\(무결성\) 검사에 걸렸습니다/)
+    expect(engine.getState().error).toMatch(/미허가 도구/)
+    expect(engine.getState().error).toMatch(/\[DYNAPATH-1406\]/)
   })
 
   it('does not commit a reservation into a run that was stopped mid-reserve', async () => {

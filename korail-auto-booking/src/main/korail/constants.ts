@@ -9,6 +9,8 @@
  * runtime (settings, environment variables, remote hint) without a rebuild.
  */
 
+import { APP_VERSION_SERVER_CODES } from '../../shared/errorCodes'
+
 export const KORAIL_HOST = 'smart.letskorail.com'
 export const KORAIL_BASE = `https://${KORAIL_HOST}:443`
 
@@ -187,7 +189,7 @@ export const ERROR_CODES = {
    * "최신 버전으로 업데이트해 주세요": the Version / AppVersion (or token generation) this client sends is
    * stale. -8204 is what the server has answered since 2026-10-21; SUPDATE is the app's own literal for it.
    */
-  appVersion: ['-8204', 'SUPDATE'],
+  appVersion: APP_VERSION_SERVER_CODES,
 } as const
 
 /**

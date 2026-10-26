@@ -133,6 +133,8 @@ export default function App(): JSX.Element {
   const [versionOverrides, setVersionOverrides] = useState<VersionOverrides>({ appVersion: '', appDisplayVersion: '' })
   // Korail's "update the app" answer, kept on screen until the version values change (a toast is too brief).
   const [appVersionIssue, setAppVersionIssue] = useState<string | null>(null)
+  // An engine stop on that answer stays in booking.error until the next run; remember when the user has dealt with it.
+  const [clearedEngineError, setClearedEngineError] = useState<string | null>(null)
   const prevStatus = useRef<BookingState['status']>('idle')
   const prevWaitlist = useRef(0)
   const toastTimer = useRef<number | null>(null)
@@ -240,8 +242,12 @@ export default function App(): JSX.Element {
         setSavedLogin(await korail.getSavedLogin())
         pushLog({ ts: Date.now(), level: 'success', message: `로그인 성공: ${result.name ?? ''} (${result.membershipNumber ?? ''})` })
         if (result.message) showToast(result.message, 'info')
+        // The version lookups that run at startup may have finished since bootstrap; show what is in effect now.
+        korail.getAppInfo().then(setAppInfo, () => undefined)
       } catch (e) {
-        setAuthError(errorMessage(e))
+        const message = errorMessage(e)
+        if (isAppVersionErrorMessage(message)) setAppVersionIssue(message)
+        setAuthError(message)
       } finally {
         setAuthBusy(false)
       }
@@ -256,8 +262,11 @@ export default function App(): JSX.Element {
       const result = await korail.loginWithSaved()
       setSession({ loggedIn: true, name: result.name, membershipNumber: result.membershipNumber, email: result.email })
       pushLog({ ts: Date.now(), level: 'success', message: `로그인 성공: ${result.name ?? ''} (${result.membershipNumber ?? ''})` })
+      korail.getAppInfo().then(setAppInfo, () => undefined)
     } catch (e) {
-      setAuthError(errorMessage(e))
+      const message = errorMessage(e)
+      if (isAppVersionErrorMessage(message)) setAppVersionIssue(message)
+      setAuthError(message)
     } finally {
       setAuthBusy(false)
     }
@@ -294,7 +303,9 @@ export default function App(): JSX.Element {
         level: 'info',
         message: `열차 조회: ${req.dep} → ${req.arr} ${form.date} ${form.timeFrom}~${form.timeTo} — ${result.length}편`,
       })
+      // A search that Korail accepted proves the version values are fine now.
       setAppVersionIssue(null)
+      setClearedEngineError(booking.error)
     } catch (e) {
       const message = errorMessage(e)
       if (isAppVersionErrorMessage(message)) setAppVersionIssue(message)
@@ -302,7 +313,7 @@ export default function App(): JSX.Element {
     } finally {
       setSearching(false)
     }
-  }, [form, pushLog, showToast])
+  }, [form, pushLog, showToast, booking.error])
 
   const saveVersionOverrides = useCallback(
     async (next: VersionOverrides) => {
@@ -312,13 +323,14 @@ export default function App(): JSX.Element {
         const info = await korail.getAppInfo()
         setAppInfo(info)
         setAppVersionIssue(null)
+        setClearedEngineError(booking.error)
         pushLog({ ts: Date.now(), level: 'info', message: `코레일+ 앱 버전 값 적용: Version ${info.apiVersion}, AppVersion ${info.appDisplayVersion}` })
-        showToast('버전 값을 저장했습니다. 열차 조회를 다시 시도하세요.', 'info')
+        showToast(session.loggedIn ? '버전 값을 저장했습니다. 열차 조회를 다시 시도하세요.' : '버전 값을 저장했습니다. 다시 로그인하세요.', 'info')
       } catch (e) {
         showToast(`버전 값 저장 실패: ${errorMessage(e)}`)
       }
     },
-    [pushLog, showToast],
+    [pushLog, showToast, booking.error, session.loggedIn],
   )
 
   const start = useCallback(async () => {
@@ -413,8 +425,10 @@ export default function App(): JSX.Element {
     [visibleTrains, form.categories],
   )
   const selectedInView = useMemo(() => [...selected].filter((k) => visibleTrains.some((t) => t.key === k)).length, [selected, visibleTrains])
-  // Either a failed search/start or the engine stopping on the same answer keeps the banner up.
-  const appVersionBlocked = appVersionIssue ?? (isAppVersionErrorMessage(booking.error) ? booking.error : null)
+  // Either a failed login/search/start or the engine stopping on the same answer keeps the banner up,
+  // until new version values are saved or a later request goes through.
+  const engineVersionError = isAppVersionErrorMessage(booking.error) && booking.error !== clearedEngineError ? booking.error : null
+  const appVersionBlocked = appVersionIssue ?? engineVersionError
 
   return (
     <div className="app">
@@ -447,14 +461,24 @@ export default function App(): JSX.Element {
 
       {!session.loggedIn ? (
         <main className="center">
-          <LoginCard
-            savedLogin={savedLogin}
-            busy={authBusy}
-            error={authError}
-            onLogin={login}
-            onLoginSaved={loginWithSaved}
-            onClearSaved={clearSaved}
-          />
+          <div className="login-stack">
+            {appVersionBlocked && (
+              <div className="alert error banner" role="alert">
+                <strong>코레일이 앱 업데이트를 요구합니다.</strong> 코레일+ 앱이 새 버전으로 바뀌어 이 프로그램이 보내는 버전 값이 거부되었습니다. 새 버전의
+                프로그램을 받거나, 아래 <strong>코레일+ 앱 버전 값 (고급)</strong>에 Play 스토어의 최신 코레일+ 버전(예: 7.0.11)을 입력한 뒤 다시 로그인하세요.
+                <span className="banner-detail">{appVersionBlocked}</span>
+              </div>
+            )}
+            <LoginCard
+              savedLogin={savedLogin}
+              busy={authBusy}
+              error={authError}
+              onLogin={login}
+              onLoginSaved={loginWithSaved}
+              onClearSaved={clearSaved}
+            />
+            <VersionSettings info={appInfo} overrides={versionOverrides} highlighted={appVersionBlocked !== null} disabled={authBusy} onSave={saveVersionOverrides} />
+          </div>
         </main>
       ) : (
         <main className="layout">

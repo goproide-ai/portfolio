@@ -99,8 +99,13 @@ export class NetworkError extends Error {
 const APP_UPDATE_REGEX =
   /(앱|어플|애플리케이션|app)[^.]{0,24}(업데이트|최신\s*버전)|(업데이트|최신\s*버전)[^.]{0,24}(앱|어플|애플리케이션|app)|최신\s*버전(으로|을|에)?\s*(업데이트|갱신|설치)/i
 
+/**
+ * Always coded APP_VERSION so every layer (engine, IPC flattening, renderer banner) recognises it;
+ * the server's own code and text ride along in the message.
+ */
 function appVersionError(code: string, msg: string): AppVersionError {
-  return new AppVersionError(msg ? `${APP_VERSION_MESSAGE} (서버 메시지: ${msg})` : APP_VERSION_MESSAGE, code || APP_VERSION_ERROR_CODE)
+  const detail = [code ? `서버 코드 ${code}` : '', msg ? `서버 메시지: ${msg}` : ''].filter(Boolean).join(', ')
+  return new AppVersionError(detail ? `${APP_VERSION_MESSAGE} (${detail})` : APP_VERSION_MESSAGE)
 }
 
 /** Map a FAIL response to the most specific error class. */
@@ -119,7 +124,9 @@ export function errorFromResponse(code: string | undefined, text: string | undef
 /**
  * Map a rejection envelope that is not a Korail `strResult` answer — `{code, message}` on an
  * HTTP 403 (이용 제한 -2000, 매크로 도구 -1406) or the app-version gate — to an error, or null
- * when the body is not one of those envelopes.
+ * when the body is not one of those known envelopes. An unknown code is deliberately left to the
+ * caller's HTTP-status handling (NetworkError), so the engine backs off instead of re-polling at
+ * full rate on a condition it does not understand.
  */
 export function errorFromRejection(status: number, body: Record<string, unknown>): KorailError | null {
   const code = body.code === undefined || body.code === null ? '' : String(body.code).trim()
@@ -132,7 +139,7 @@ export function errorFromRejection(status: number, body: Record<string, unknown>
     return new DynaPathError(message ? `코레일 매크로 방지 검사 거부: ${message}` : undefined, `DYNAPATH${code}`)
   }
   if ((ERROR_CODES.appVersion as readonly string[]).includes(code)) return appVersionError(code, message)
-  if (status >= 400) return new KorailError(message || `코레일 서버가 요청을 거절했습니다 (HTTP ${status})`, code)
+  void status
   return null
 }
 
