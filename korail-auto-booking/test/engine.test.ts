@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { BookingEngine, ConfigError, MAX_ERROR_BACKOFF_MS, MAX_RELOGINS_PER_WINDOW, kstToday, validateConfig } from '../src/main/booking/engine'
-import { AccessRestrictedError, AppVersionError, DynaPathError, NeedToLoginError, NetworkError, SoldOutError } from '../src/main/korail/errors'
+import { AccessRestrictedError, AppVersionError, DynaPathError, NeedToLoginError, NetworkError, SoldOutError, errorFromResponse } from '../src/main/korail/errors'
+import { isAppVersionErrorMessage } from '../src/shared/errorCodes'
 import type { KorailClient } from '../src/main/korail/client'
 import type { BookingConfig, LogEntry, Reservation, Train } from '../src/shared/types'
 
@@ -496,16 +497,20 @@ describe('BookingEngine', () => {
     engine.stop()
   })
 
-  it('stops with a clear message when Korail demands an app update', async () => {
+  it('stops with a clear message when Korail demands an app update, in a form the renderer banner recognises', async () => {
     const client = fakeClient()
-    client.searchWindow.mockRejectedValue(new AppVersionError())
+    // The live 2026-10 answer: FAIL with h_msg_cd -8204, mapped exactly like the client does.
+    client.searchWindow.mockRejectedValue(errorFromResponse('-8204', '원활한 예매 및 결제 서비스를 위해 최신 버전으로 업데이트해 주세요.'))
     const { engine } = makeEngine(client)
     engine.start(baseConfig())
     await vi.advanceTimersByTimeAsync(0)
     await engine.whenDone()
     expect(engine.getState().status).toBe('error')
     expect(engine.getState().error).toMatch(/업데이트/)
+    expect(engine.getState().error).toMatch(/서버 코드 -8204/)
+    expect(isAppVersionErrorMessage(engine.getState().error)).toBe(true)
     expect(client.searchWindow).toHaveBeenCalledTimes(1)
+    expect(new AppVersionError().code).toBe('APP_VERSION')
   })
 
   it('stops at once on an access restriction (-2000) instead of re-polling a restricted account', async () => {
