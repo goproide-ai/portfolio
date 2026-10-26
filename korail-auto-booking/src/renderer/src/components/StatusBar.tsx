@@ -1,0 +1,60 @@
+import type { JSX } from 'react'
+import type { BookingState } from '../../../shared/types'
+import { clock, elapsed } from '../lib/format'
+import { useNow } from '../lib/useNow'
+
+interface Props {
+  state: BookingState
+}
+
+const LABELS: Record<BookingState['status'], string> = {
+  idle: '대기 중',
+  running: '자동 예매 실행 중',
+  success: '예약 성공',
+  stopped: '중지됨',
+  error: '오류로 중지됨',
+}
+
+function label(state: BookingState): string {
+  if (state.status === 'success' && state.reservation?.waiting) return '예약대기 등록됨 (좌석 미확보)'
+  return LABELS[state.status]
+}
+
+export function StatusBar({ state }: Props): JSX.Element {
+  const now = useNow(state.status === 'running')
+  const nextIn = state.nextCheckAt ? Math.max(0, Math.ceil((state.nextCheckAt - now) / 1000)) : null
+  const waitlisted = state.waitlist.length
+
+  return (
+    <section className={`card statusbar status-${state.status}`}>
+      <div className="status-main">
+        <span className={`pill ${state.status}`}>
+          {state.status === 'running' && <span className="spinner" aria-hidden="true" />}
+          {label(state)}
+        </span>
+        {waitlisted > 0 && state.status !== 'success' && (
+          <span className="pill waiting">예약대기 {waitlisted}건 등록{state.status === 'running' ? ' · 빈 좌석 계속 찾는 중' : ''}</span>
+        )}
+        {state.error && <span className="status-error">{state.error}</span>}
+      </div>
+      <dl className="stats">
+        <div>
+          <dt>시도</dt>
+          <dd>{state.attempts}회</dd>
+        </div>
+        <div>
+          <dt>마지막 조회</dt>
+          <dd>{clock(state.lastCheckedAt)}</dd>
+        </div>
+        <div>
+          <dt>다음 조회</dt>
+          <dd>{state.status === 'running' ? (nextIn === null ? '조회 중…' : `${nextIn}초 후`) : '-'}</dd>
+        </div>
+        <div>
+          <dt>경과</dt>
+          <dd>{state.status === 'running' ? elapsed(state.startedAt, now) : state.startedAt ? elapsed(state.startedAt, state.lastCheckedAt ?? state.startedAt) : '-'}</dd>
+        </div>
+      </dl>
+    </section>
+  )
+}

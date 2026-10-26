@@ -1,0 +1,48 @@
+appId: dev.goproide.korail-auto-booking
+productName: Korail Auto Booking
+copyright: Copyright © 2026 goproide
+directories:
+  output: release
+  buildResources: resources
+files:
+  - out/**
+  - package.json
+  - '!**/*.map'
+asar: true
+# The Linux window icon is loaded from disk at runtime (Windows/macOS take it from the exe/bundle).
+extraResources:
+  - from: resources/icon.png
+    to: icon.png
+# e.g. korail-auto-booking-0.1.0-win-x64.exe / -mac-arm64.dmg / -linux-x86_64.AppImage (AppImage uses x86_64)
+artifactName: korail-auto-booking-${version}-${os}-${arch}.${ext}
+win:
+  target:
+    - nsis
+    - portable
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  # Shortcuts keep the productName: a different shortcutName makes Electron create a second Start Menu
+  # entry (for toast activation) on the first notification.
+portable:
+  # The nsis installer and the portable exe would otherwise get the same file name.
+  artifactName: korail-auto-booking-${version}-win-${arch}-portable.${ext}
+mac:
+  target:
+    - dmg
+    - zip
+  category: public.app-category.travel
+  # Unsigned build (no Apple Developer certificate). Gatekeeper shows it as damaged until the user clears
+  # quarantine with `xattr -cr "/Applications/Korail Auto Booking.app"` before first launch.
+  identity: null
+linux:
+  target:
+    - AppImage
+    # .deb installs chrome-sandbox with the SUID bit, so it also works on Ubuntu 24.04+ where the
+    # AppImage needs libfuse2 and hits the unprivileged-user-namespace restriction.
+    - deb
+  category: Utility
+  maintainer: goproide
+# Releases are created by .github/workflows/korail-release.yml, not by electron-builder's publisher.
+publish: null
