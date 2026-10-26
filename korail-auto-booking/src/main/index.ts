@@ -190,7 +190,7 @@ function bootstrap(): void {
       version: resolveVersion(API_VERSION, { setting: s.appVersion, env: process.env.KORAIL_APP_VERSION, hint: versionHint.version }, normalizeBuildVersion),
       appVersion: resolveVersion(
         APP_DISPLAY_VERSION,
-        { setting: s.appDisplayVersion, env: process.env.KORAIL_APP_DISPLAY_VERSION, hint: versionHint.appVersion },
+        { setting: s.appDisplayVersion, env: process.env.KORAIL_APP_DISPLAY_VERSION, hint: versionHint.appVersion, server: versionHint.server },
         normalizeDisplayVersion,
       ),
     }
@@ -199,6 +199,7 @@ function bootstrap(): void {
     return resolved
   }
   refreshVersions()
+  const lookupsOff = process.env.KORAIL_VERSION_HINT_URL?.trim().toLowerCase() === 'off'
   const hintUrls = versionHintUrls(apiBase !== undefined)
   if (hintUrls.length > 0) {
     void fetchVersionHint(fetchImpl, hintUrls, { log: debugLog }).then((hint) => {
@@ -207,6 +208,23 @@ function bootstrap(): void {
       const r = refreshVersions()
       console.log(`[korail] 원격 버전 안내 적용: Version=${r.version.value} (${r.version.source}), AppVersion=${r.appVersion.value} (${r.appVersion.source})`)
     })
+  }
+  // Korail's own update notice (the app's main-screen cache) names the current store version; a newer
+  // value than the built-in is adopted as AppVersion so the first Korail release after this build
+  // still works. Best effort: any failure just leaves the other sources in charge.
+  if (!lookupsOff) {
+    void client
+      .fetchAppUpdateInfo()
+      .then((info) => {
+        if (!info.latestVersion) {
+          debugLog('app cache: no NEWDVERSION in the response')
+          return
+        }
+        versionHint.server = info.latestVersion
+        const r = refreshVersions()
+        debugLog(`app cache: latest store version ${info.latestVersion}; AppVersion now ${r.appVersion.value} (${r.appVersion.source})`)
+      })
+      .catch((e: unknown) => debugLog(`app cache lookup failed: ${(e as Error)?.message ?? String(e)}`))
   }
   const sessionState: IpcContext['session'] = { credentials: null }
 

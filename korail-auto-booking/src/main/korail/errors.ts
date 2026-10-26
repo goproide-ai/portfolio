@@ -91,8 +91,13 @@ export class NetworkError extends Error {
   }
 }
 
-/** Server messages that mean "your app version is too old" rather than a real failure of the request. */
-const APP_UPDATE_REGEX = /(앱|어플|애플리케이션|app)[^.]{0,24}(업데이트|최신\s*버전)|(업데이트|최신\s*버전)[^.]{0,24}(앱|어플|애플리케이션|app)/i
+/**
+ * Server messages that mean "your app version is too old" rather than a real failure of the request.
+ * The live -8204 text is "원활한 예매 및 결제 서비스를 위해 최신 버전으로 업데이트해 주세요. …", so a bare
+ * "최신 버전으로 업데이트" counts too; "예약 정보가 업데이트되었습니다" must not.
+ */
+const APP_UPDATE_REGEX =
+  /(앱|어플|애플리케이션|app)[^.]{0,24}(업데이트|최신\s*버전)|(업데이트|최신\s*버전)[^.]{0,24}(앱|어플|애플리케이션|app)|최신\s*버전(으로|을|에)?\s*(업데이트|갱신|설치)/i
 
 function appVersionError(code: string, msg: string): AppVersionError {
   return new AppVersionError(msg ? `${APP_VERSION_MESSAGE} (서버 메시지: ${msg})` : APP_VERSION_MESSAGE, code || APP_VERSION_ERROR_CODE)

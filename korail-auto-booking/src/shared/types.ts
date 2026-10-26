@@ -188,8 +188,8 @@ export interface AppSettings {
   appDisplayVersion: string
 }
 
-/** Where an effective version value came from (settings UI, environment variable, remote hint, built-in). */
-export type VersionSource = 'setting' | 'env' | 'hint' | 'default'
+/** Where an effective version value came from (settings UI, environment variable, remote hint, Korail's own update notice, built-in). */
+export type VersionSource = 'setting' | 'env' | 'hint' | 'server' | 'default'
 
 export interface AppInfo {
   version: string

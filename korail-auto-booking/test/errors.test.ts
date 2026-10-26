@@ -9,11 +9,19 @@ describe('errorFromResponse', () => {
     expect(errorFromResponse('', '코레일톡 앱 업데이트가 필요합니다.').code).toBe('APP_VERSION')
   })
 
-  it('recognises the -8204 code even without a telling message', () => {
+  it('recognises the -8204 code even without a telling message, and the app literal SUPDATE', () => {
     const e = errorFromResponse('-8204', '')
     expect(e).toBeInstanceOf(AppVersionError)
     expect(e.code).toBe('-8204')
     expect(e.message).toMatch(/앱 업데이트/)
+    expect(errorFromResponse('SUPDATE', '')).toBeInstanceOf(AppVersionError)
+  })
+
+  it('recognises the live 2026-10 server text even under an unknown code', () => {
+    const live = '원활한 예매 및 결제 서비스를 위해 최신 버전으로 업데이트해 주세요. 최신 버전으로 업데이트하지 않을 경우 앱 이용이 제한될 수 있습니다.'
+    expect(errorFromResponse('WRZ999999', live)).toBeInstanceOf(AppVersionError)
+    expect(errorFromResponse('', '최신 버전으로 업데이트해 주세요.')).toBeInstanceOf(AppVersionError)
+    expect(errorFromResponse('', '최신 버전을 설치해 주세요.')).toBeInstanceOf(AppVersionError)
   })
 
   it('does not mistake ordinary messages for an update demand', () => {

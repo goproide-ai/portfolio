@@ -71,6 +71,10 @@ export function startMockKorail({ soldOutRounds = 2 } = {}) {
     sidSeen: [],
     /** AppVersion values seen per path. */
     appVersionSeen: [],
+    /** prdMobilePlusMain.cache probes (the app's own update check; no login needed). */
+    cacheProbes: 0,
+    /** What the cache announces as the current store version. */
+    latestAppVersion: '7.0.10',
   }
 
   const server = createServer(async (req, res) => {
@@ -115,6 +119,15 @@ export function startMockKorail({ soldOutRounds = 2 } = {}) {
       }
     }
 
+    // The app's main-screen cache: notices plus the current store version, served without login/token.
+    if (path === '/file/CACHE/prdMobilePlusMain.cache') {
+      state.cacheProbes += 1
+      if (!p('timeStamp') || p('srtCheckYn') !== 'Y') return fail('WRC000000', 'bad cache query')
+      return send({
+        version: { NEWDVERSION: state.latestAppVersion, AMESSAGE: '최신 버전으로 업데이트해 주세요.', CNTAURL: 'https://play.google.com/store/apps/details?id=com.korail.talk' },
+        notice: { BbrdId: '', PtwtTtl: '', PtwtCont: '' },
+      })
+    }
     if (path.endsWith('.common.code.do')) {
       const codes = url.searchParams.getAll('code').concat(body.getAll('code'))
       if (!codes.includes('app.login.cphd')) return fail('WRC000000', 'unknown code')

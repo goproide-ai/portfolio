@@ -99,6 +99,7 @@ try {
   assert(mock.state.appVersionSeen.some((a) => a.path.endsWith('TicketReservation')), 'AppVersion sent on reserve')
   const footer = await page.textContent('footer.statusline')
   assert(footer.includes('코레일+ 7.0.10 / 250722001'), `footer shows the protocol versions: ${footer}`)
+  assert(mock.state.cacheProbes >= 1, 'the app asked the main-screen cache for the current store version')
   const logText = await page.textContent('[data-testid="log"]')
   assert(logText.includes('예약 성공'), 'log shows success')
 

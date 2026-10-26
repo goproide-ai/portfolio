@@ -20,6 +20,7 @@ const SOURCE_LABELS: Record<VersionSource, string> = {
   setting: '직접 입력',
   env: '환경 변수',
   hint: '원격 안내',
+  server: '코레일 서버 안내',
   default: '기본값',
 }
 

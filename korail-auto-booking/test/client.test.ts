@@ -494,6 +494,32 @@ describe('KorailClient rejections (7.0.10 server)', () => {
     expect(calls[1].params.get('AppVersion')).toBe('7.0.10')
   })
 
+  it('reads the current store version from the main-screen cache without needing a login', async () => {
+    const { fetch, calls } = makeFetch((r) => {
+      if (hits(r, ENDPOINTS.appCache)) {
+        return jsonResponse({ version: { NEWDVERSION: '7.0.11', AMESSAGE: '업데이트', CNTAURL: 'https://play.google.com/store/apps/details?id=com.korail.talk' }, notice: {} })
+      }
+      return jsonResponse({ strResult: 'FAIL', h_msg_cd: 'P058', h_msg_txt: '로그인' })
+    })
+    const client = new KorailClient({ fetch, now: () => 1761480000000 })
+    const info = await client.fetchAppUpdateInfo()
+    expect(info).toEqual({ latestVersion: '7.0.11', message: '업데이트', storeUrl: 'https://play.google.com/store/apps/details?id=com.korail.talk' })
+    expect(calls).toHaveLength(1)
+    expect(calls[0].method).toBe('POST')
+    expect(calls[0].url.pathname).toBe('/file/CACHE/prdMobilePlusMain.cache')
+    expect(calls[0].params.get('Device')).toBe('AD')
+    expect(calls[0].params.get('Version')).toBe('250722001')
+    expect(calls[0].params.get('AppVersion')).toBe('7.0.10')
+    expect(calls[0].params.get('Key')).toBe('korail1234567890')
+    expect(calls[0].params.get('timeStamp')).toBe('1761480000000')
+    expect(calls[0].params.get('srtCheckYn')).toBe('Y')
+    expect(calls[0].headers[DYNAPATH_HEADER]).toBeUndefined()
+    expect(calls[0].headers.Cookie).toBeUndefined()
+
+    const { fetch: f2 } = makeFetch(() => new Response('<html>maintenance</html>', { status: 503 }))
+    await expect(new KorailClient({ fetch: f2 }).fetchAppUpdateInfo()).rejects.toThrow(NetworkError)
+  })
+
   it('logs out through common.logout with the common fields', async () => {
     const { client, calls } = await loggedInClient(() => jsonResponse({ strResult: 'SUCC' }))
     await client.logout()

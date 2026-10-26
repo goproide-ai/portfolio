@@ -24,11 +24,14 @@ export interface Endpoints {
   wait: string
   tickets: string
   stationData: string
+  /** The app's main-screen cache (notices + the latest store version); no login or token needed. */
+  appCache: string
 }
 
 /** Build the endpoint table for a base URL (lets tests / a host change point elsewhere). */
 export function endpointsFor(base: string): Endpoints {
-  const mobile = `${base.replace(/\/+$/, '')}/classes/com.korail.mobile`
+  const root = base.replace(/\/+$/, '')
+  const mobile = `${root}/classes/com.korail.mobile`
   return {
     code: `${mobile}.common.code.do`,
     login: `${mobile}.login.Login`,
@@ -40,6 +43,7 @@ export function endpointsFor(base: string): Endpoints {
     wait: `${mobile}.reservationWait.ReservationWait`,
     tickets: `${mobile}.myTicket.MyTicketList`,
     stationData: `${mobile}.common.stationdata`,
+    appCache: `${root}/file/CACHE/prdMobilePlusMain.cache`,
   }
 }
 
@@ -179,8 +183,11 @@ export const ERROR_CODES = {
   needLogin: ['P058'],
   noResults: ['P100', 'WRG000000', 'WRD000061', 'WRT300005'],
   soldOut: ['ERR211161', 'IRT010110'],
-  /** "앱 업데이트 후 이용해 주세요": the Version / AppVersion (or token generation) this client sends is stale. */
-  appVersion: ['-8204'],
+  /**
+   * "최신 버전으로 업데이트해 주세요": the Version / AppVersion (or token generation) this client sends is
+   * stale. -8204 is what the server has answered since 2026-10-21; SUPDATE is the app's own literal for it.
+   */
+  appVersion: ['-8204', 'SUPDATE'],
 } as const
 
 /**

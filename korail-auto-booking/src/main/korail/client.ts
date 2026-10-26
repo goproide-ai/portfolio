@@ -22,6 +22,7 @@ import {
   USER_AGENT,
 } from './constants'
 import { generateSid, transformLoginPassword, type LoginCryptoInfo } from './crypto'
+import { parseAppUpdateInfo, type AppUpdateInfo } from './version'
 import { DYNAPATH_HEADER, DynapathTokenGenerator } from './dynapath'
 import {
   DynaPathError,
@@ -390,6 +391,20 @@ export class KorailClient {
       result.message = `코레일이 이 계정에 매크로 의심 안내(${noti})를 보냈습니다. 조회 간격을 늘리고 사용을 자제하세요.`
     }
     return result
+  }
+
+  /**
+   * The app's main-screen cache call (made by the real app before login, without a token). Its
+   * `version.NEWDVERSION` is the store version Korail currently expects, so a stale build can learn
+   * the value it should send as `AppVersion`. Never required: callers treat failures as "unknown".
+   */
+  async fetchAppUpdateInfo(): Promise<AppUpdateInfo> {
+    const json = await this.rawRequest('POST', this.endpoints.appCache, {
+      ...this.keyedParams(),
+      timeStamp: String(this.now()),
+      srtCheckYn: 'Y',
+    })
+    return parseAppUpdateInfo(json)
   }
 
   async logout(): Promise<void> {
