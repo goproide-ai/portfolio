@@ -133,8 +133,9 @@ export default function App(): JSX.Element {
   const [versionOverrides, setVersionOverrides] = useState<VersionOverrides>({ appVersion: '', appDisplayVersion: '' })
   // Korail's "update the app" answer, kept on screen until the version values change (a toast is too brief).
   const [appVersionIssue, setAppVersionIssue] = useState<string | null>(null)
-  // An engine stop on that answer stays in booking.error until the next run; remember when the user has dealt with it.
-  const [clearedEngineError, setClearedEngineError] = useState<string | null>(null)
+  // An engine stop on that answer stays in booking.error until the next run; remember which run (by its
+  // startedAt) the user has dealt with, so an identical error from a later run shows the banner again.
+  const [ackedRun, setAckedRun] = useState<number | null>(null)
   const prevStatus = useRef<BookingState['status']>('idle')
   const prevWaitlist = useRef(0)
   const toastTimer = useRef<number | null>(null)
@@ -305,7 +306,7 @@ export default function App(): JSX.Element {
       })
       // A search that Korail accepted proves the version values are fine now.
       setAppVersionIssue(null)
-      setClearedEngineError(booking.error)
+      setAckedRun(booking.startedAt)
     } catch (e) {
       const message = errorMessage(e)
       if (isAppVersionErrorMessage(message)) setAppVersionIssue(message)
@@ -313,7 +314,7 @@ export default function App(): JSX.Element {
     } finally {
       setSearching(false)
     }
-  }, [form, pushLog, showToast, booking.error])
+  }, [form, pushLog, showToast, booking.startedAt])
 
   const saveVersionOverrides = useCallback(
     async (next: VersionOverrides) => {
@@ -323,14 +324,14 @@ export default function App(): JSX.Element {
         const info = await korail.getAppInfo()
         setAppInfo(info)
         setAppVersionIssue(null)
-        setClearedEngineError(booking.error)
+        setAckedRun(booking.startedAt)
         pushLog({ ts: Date.now(), level: 'info', message: `코레일+ 앱 버전 값 적용: Version ${info.apiVersion}, AppVersion ${info.appDisplayVersion}` })
         showToast(session.loggedIn ? '버전 값을 저장했습니다. 열차 조회를 다시 시도하세요.' : '버전 값을 저장했습니다. 다시 로그인하세요.', 'info')
       } catch (e) {
         showToast(`버전 값 저장 실패: ${errorMessage(e)}`)
       }
     },
-    [pushLog, showToast, booking.error, session.loggedIn],
+    [pushLog, showToast, booking.startedAt, session.loggedIn],
   )
 
   const start = useCallback(async () => {
@@ -427,7 +428,7 @@ export default function App(): JSX.Element {
   const selectedInView = useMemo(() => [...selected].filter((k) => visibleTrains.some((t) => t.key === k)).length, [selected, visibleTrains])
   // Either a failed login/search/start or the engine stopping on the same answer keeps the banner up,
   // until new version values are saved or a later request goes through.
-  const engineVersionError = isAppVersionErrorMessage(booking.error) && booking.error !== clearedEngineError ? booking.error : null
+  const engineVersionError = isAppVersionErrorMessage(booking.error) && booking.startedAt !== ackedRun ? booking.error : null
   const appVersionBlocked = appVersionIssue ?? engineVersionError
 
   return (
