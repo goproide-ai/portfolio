@@ -1,7 +1,14 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  async rewrites() {
+    return [
+      {
+        source: "/humanoid-ui-showcase",
+        destination: "/humanoid-ui-showcase/index.html",
+      },
+    ];
+  },
 };
 
 export default nextConfig;
